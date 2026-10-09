@@ -1,0 +1,126 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --ink: #383047;
+    --ink-muted: #6b607c;
+    --cream: #fff9f3;
+    --accent: #b75078;
+    --accent-hover: #9c3b63;
+    --accent-light: #f7c9d8;
+    --lavender: #e9dcf6;
+    --lavender-light: #f4ecfc;
+    --card-border: #563e4b1a;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    background-color: #fff9f3;
+    color: #383047;
+  }
+
+  body {
+    font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    color: #383047;
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+  }
+
+  ::selection {
+    background-color: #f7c9d8;
+    color: #383047;
+  }
+}
+
+.font-display {
+  font-family: 'Fraunces', Georgia, serif;
+  font-optical-sizing: auto;
+}
+
+.font-sans {
+  font-family: 'DM Sans', sans-serif;
+}
+
+/* Subtle bespoke grain background */
+.bg-grain {
+  background-image: radial-gradient(rgba(183, 80, 120, 0.12) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+/* Card hover and elevation */
+.soft-card {
+  border: 1px solid rgba(86, 62, 75, 0.12);
+  background-color: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 16px 40px -10px rgba(103, 82, 103, 0.08);
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease, border-color 0.3s ease;
+}
+
+.soft-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 24px 50px -8px rgba(103, 82, 103, 0.16);
+  border-color: rgba(183, 80, 120, 0.28);
+}
+
+/* Accessible focus outline */
+:focus-visible {
+  outline: 3px solid #b75078;
+  outline-offset: 3px;
+}
+
+/* Full bleed hero wallpaper */
+.hero {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 640px;
+  background: #e9dcf6;
+  overflow: hidden;
+}
+
+.hero-photo-wrap {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  z-index: 0;
+}
+
+.hero-photo {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 70% center;
+}
+
+.hero-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(255, 249, 243, 0.96) 0%, rgba(255, 249, 243, 0.90) 42%, rgba(255, 249, 243, 0.45) 70%, rgba(255, 249, 243, 0.15) 100%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+@media (max-width: 768px) {
+  .hero-overlay {
+    background: linear-gradient(180deg, rgba(255, 249, 243, 0.92) 0%, rgba(255, 249, 243, 0.82) 60%, rgba(255, 249, 243, 0.65) 100%);
+  }
+}
+
+.hero-copy {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 640px;
+  padding: 80px max(24px, calc((100vw - 1160px) / 2));
+}
+
+.hero-eyebrow, .hero-title, .hero-description {
+  text-shadow: 0 2px 14px rgba(255, 249, 243, 0.95), 0 1px 3px rgba(255, 249, 243, 0.9);
+}
+

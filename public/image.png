@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#faebf2"/>
+      <stop offset="50%" stop-color="#fce4ec"/>
+      <stop offset="100%" stop-color="#f8bbd0"/>
+    </linearGradient>
+    <linearGradient id="roseGold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#b75078"/>
+      <stop offset="100%" stop-color="#8e44ad"/>
+    </linearGradient>
+  </defs>
+  <!-- Background Circle -->
+  <circle cx="100" cy="100" r="96" fill="url(#bgGrad)" stroke="#b75078" stroke-width="4"/>
+  <!-- Decorative Inner Ring -->
+  <circle cx="100" cy="100" r="86" fill="none" stroke="#b75078" stroke-width="1.5" stroke-dasharray="4,4" opacity="0.6"/>
+  <!-- Floral Petals Accent -->
+  <path d="M100 28 C95 38 85 40 100 50 C115 40 105 38 100 28 Z" fill="#b75078" opacity="0.7"/>
+  <path d="M100 172 C95 162 85 160 100 150 C115 160 105 162 100 172 Z" fill="#b75078" opacity="0.7"/>
+  <!-- Monogram Initials AA -->
+  <text x="100" y="112" font-family="'Plus Jakarta Sans', 'Outfit', sans-serif" font-size="44" font-weight="bold" fill="url(#roseGold)" text-anchor="middle" letter-spacing="2">AA</text>
+  <!-- Subtitle Tag -->
+  <text x="100" y="132" font-family="'Plus Jakarta Sans', sans-serif" font-size="11" font-weight="600" fill="#6b607c" text-anchor="middle" letter-spacing="1.5">AGNES ABELIDO</text>
+</svg>
