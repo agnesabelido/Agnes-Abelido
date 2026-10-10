@@ -14,20 +14,20 @@ export const About: React.FC = () => {
             data-template-id="about-eyebrow"
             className="canva-text uppercase tracking-[.25em] font-bold text-xs sm:text-sm text-[#b75078] mb-3"
           >
-            RESUME & BACKGROUND
+            BACKGROUND
           </p>
           <h2
             data-template-id="about-title"
             className="canva-text font-display text-3xl sm:text-4xl lg:text-5xl font-bold text-[#383047]"
           >
-            Leadership, Experience & Education
+            Education, Experience in Leadership & Experience
           </h2>
           <p className="mt-3 text-sm sm:text-base text-[#554b65] max-w-2xl leading-relaxed">
             {FREELANCER_INFO.professionalSummary}
           </p>
         </div>
 
-        {/* Tab Navigation for Resume Sections: Education first, Internship next, then Campus Orgs */}
+        {/* Tab Navigation: Education first, next is Experience in Leadership, then Experience */}
         <div className="flex flex-wrap items-center gap-2 mb-8 p-1.5 bg-white/80 rounded-2xl border border-[#e7d6d9] w-fit">
           <button
             type="button"
@@ -38,18 +38,7 @@ export const About: React.FC = () => {
                 : 'text-[#554b65] hover:text-[#383047] hover:bg-[#faebf2]'
             }`}
           >
-            Education & Background
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('experience')}
-            className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
-              activeTab === 'experience'
-                ? 'bg-[#b75078] text-white shadow-xs'
-                : 'text-[#554b65] hover:text-[#383047] hover:bg-[#faebf2]'
-            }`}
-          >
-            Internship & Work Experience ({FREELANCER_INFO.workExperience.length})
+            Education
           </button>
           <button
             type="button"
@@ -60,7 +49,18 @@ export const About: React.FC = () => {
                 : 'text-[#554b65] hover:text-[#383047] hover:bg-[#faebf2]'
             }`}
           >
-            Campus Organizations ({FREELANCER_INFO.orgInvolvements.length})
+            Experience in Leadership ({FREELANCER_INFO.orgInvolvements.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('experience')}
+            className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
+              activeTab === 'experience'
+                ? 'bg-[#b75078] text-white shadow-xs'
+                : 'text-[#554b65] hover:text-[#383047] hover:bg-[#faebf2]'
+            }`}
+          >
+            Experience ({FREELANCER_INFO.workExperience.length})
           </button>
         </div>
 
@@ -168,9 +168,9 @@ export const About: React.FC = () => {
           </div>
         )}
 
-        {/* Technical Skills, Certifications & Awards Grid from Resume Page 3 */}
+        {/* Skills, Certifications & Awards Grid from Resume Page 3 */}
         <div className="mt-8 grid md:grid-cols-3 gap-6">
-          {/* Technical Skills */}
+          {/* Skills */}
           <div
             data-template-id="skills-card"
             className="canva-card soft-card rounded-[32px] p-6 sm:p-7 bg-white border border-[#e7d6d9]"
@@ -180,13 +180,15 @@ export const About: React.FC = () => {
               className="canva-text font-display text-lg font-bold text-[#383047] mb-4 flex items-center gap-2"
             >
               <Laptop className="w-4 h-4 text-[#b75078]" />
-              <span>Technical Skills</span>
+              <span>Skills</span>
             </h3>
             <div className="space-y-2.5">
               {FREELANCER_INFO.technicalSkills.map((sk, idx) => (
                 <div key={idx} className="flex items-center justify-between text-xs p-2 rounded-xl bg-[#fff9f3] border border-[#e7d6d9]/70">
                   <span className="font-semibold text-[#383047]">{sk.name}</span>
-                  <span className="text-[11px] font-bold text-[#b75078]">{sk.level}</span>
+                  {sk.level ? (
+                    <span className="text-[11px] font-bold text-[#b75078]">{sk.level}</span>
+                  ) : null}
                 </div>
               ))}
             </div>

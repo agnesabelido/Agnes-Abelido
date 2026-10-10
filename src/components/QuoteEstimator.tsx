@@ -7,32 +7,47 @@ interface QuoteEstimatorProps {
 
 export const QuoteEstimator: React.FC<QuoteEstimatorProps> = ({ onApplyEstimate }) => {
   const [selectedServices, setSelectedServices] = useState<string[]>([
-    'Publication Materials (Pubmats & Posters)'
+    'Social Media Management & Strategy (Primary Focus)'
   ]);
-  const [projectScope, setProjectScope] = useState<'single' | 'bundle' | 'ongoing'>('bundle');
+  const [projectScope, setProjectScope] = useState<'single' | 'bundle'>('single');
 
   const options = [
-    { id: 'Publication Materials (Pubmats & Posters)', label: 'Publication Materials (Pubmats & Posters)' },
+    { id: 'Social Media Management & Strategy (Primary Focus)', label: 'Social Media Management & Strategy (Primary Focus)' },
+    { id: 'Social Media Page Support & Content Scheduling', label: 'Social Media Page Support & Content Scheduling' },
+    { id: 'Social Media Copywriting & Captions', label: 'Social Media Copywriting & Captions' },
+    { id: 'Short-Form Video Editing (CapCut)', label: 'Short-Form Video Editing (CapCut Reels & Clips)' },
+    { id: 'Admin VA (Data Encoding, Emails & Files)', label: 'Admin VA (Data Encoding, Reply Emails & File Arranging)' },
     { id: 'Merch Mockups (Shirts & Pins)', label: 'Merch Mockups (Shirts & Pin Badges)' },
     { id: 'DP Blast Frames (Facebook Avatars)', label: 'DP Blast Frames (Facebook Avatars)' },
-    { id: 'Short-Form Video Editing (CapCut)', label: 'Short-Form Video Editing (CapCut)' },
-    { id: 'Social Media Copywriting & Captions', label: 'Social Media Copywriting & Captions' },
-    { id: 'Admin VA (Data Encoding, Emails & Files)', label: 'Admin VA (Data Encoding, Reply Emails & File Arranging)' },
-    { id: 'Social Media Page Support', label: 'Social Media Page Support & Scheduling' }
+    { id: 'Publication Materials (Pubmats & Posters)', label: 'Publication Materials (Pubmats & Posters)' }
   ];
 
+  const handleSelectScope = (scope: 'single' | 'bundle') => {
+    setProjectScope(scope);
+    if (scope === 'single' && selectedServices.length > 1) {
+      setSelectedServices([selectedServices[0] || options[0].id]);
+    }
+  };
+
   const toggleService = (id: string) => {
-    if (selectedServices.includes(id)) {
-      if (selectedServices.length > 1) {
-        setSelectedServices(selectedServices.filter((s) => s !== id));
-      }
+    if (projectScope === 'single') {
+      // In single mode, only one item can be chosen
+      setSelectedServices([id]);
     } else {
-      setSelectedServices([...selectedServices, id]);
+      // In multi-asset bundle mode, allow selecting multiple
+      if (selectedServices.includes(id)) {
+        if (selectedServices.length > 1) {
+          setSelectedServices(selectedServices.filter((s) => s !== id));
+        }
+      } else {
+        setSelectedServices([...selectedServices, id]);
+      }
     }
   };
 
   const handleSendToForm = () => {
-    const summary = `Project Scope: ${projectScope.toUpperCase()} | Services: [${selectedServices.join(', ')}]`;
+    const scopeLabel = projectScope === 'single' ? 'SINGLE TASK' : 'MULTI-ASSET BUNDLE';
+    const summary = `Project Scope: ${scopeLabel} | Selected: [${selectedServices.join(', ')}]`;
     onApplyEstimate(summary);
   };
 
@@ -48,15 +63,17 @@ export const QuoteEstimator: React.FC<QuoteEstimatorProps> = ({ onApplyEstimate 
             Build Your Custom Creative Scope
           </h3>
           <p className="text-xs sm:text-sm text-[#6b607c] mt-1">
-            Select the services you need to prepare and pre-fill your project inquiry.
+            {projectScope === 'single'
+              ? 'Single Task mode: select the 1 specific task you need.'
+              : 'Multi-Asset Bundle mode: combine multiple deliverables into your custom bundle.'}
           </p>
         </div>
 
         <div className="flex items-center gap-2 p-1.5 bg-[#f4ecfc] rounded-2xl">
           <button
             type="button"
-            onClick={() => setProjectScope('single')}
-            className={`px-3.5 py-1.5 text-xs font-semibold rounded-xl transition-all ${
+            onClick={() => handleSelectScope('single')}
+            className={`px-4 py-2 text-xs sm:text-sm font-semibold rounded-xl transition-all cursor-pointer ${
               projectScope === 'single'
                 ? 'bg-white text-[#b75078] shadow-xs'
                 : 'text-[#554b65] hover:text-[#383047]'
@@ -66,25 +83,14 @@ export const QuoteEstimator: React.FC<QuoteEstimatorProps> = ({ onApplyEstimate 
           </button>
           <button
             type="button"
-            onClick={() => setProjectScope('bundle')}
-            className={`px-3.5 py-1.5 text-xs font-semibold rounded-xl transition-all ${
+            onClick={() => handleSelectScope('bundle')}
+            className={`px-4 py-2 text-xs sm:text-sm font-semibold rounded-xl transition-all cursor-pointer ${
               projectScope === 'bundle'
                 ? 'bg-white text-[#b75078] shadow-xs'
                 : 'text-[#554b65] hover:text-[#383047]'
             }`}
           >
-            Multi-Asset Bundle
-          </button>
-          <button
-            type="button"
-            onClick={() => setProjectScope('ongoing')}
-            className={`px-3.5 py-1.5 text-xs font-semibold rounded-xl transition-all ${
-              projectScope === 'ongoing'
-                ? 'bg-white text-[#b75078] shadow-xs'
-                : 'text-[#554b65] hover:text-[#383047]'
-            }`}
-          >
-            Ongoing Support
+            Multi-Asset
           </button>
         </div>
       </div>
@@ -122,7 +128,11 @@ export const QuoteEstimator: React.FC<QuoteEstimatorProps> = ({ onApplyEstimate 
       {/* Summary Box & Action */}
       <div className="p-6 rounded-2xl bg-[#fff9f3] border border-[#e7d6d9] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <div className="text-xs text-[#6b607c]">Selected Services ({selectedServices.length}):</div>
+          <div className="text-xs text-[#6b607c]">
+            {projectScope === 'single'
+              ? 'Selected Service:'
+              : `Selected Services (${selectedServices.length}):`}
+          </div>
           <div className="text-sm font-bold text-[#383047] mt-0.5">
             {selectedServices.join(' · ')}
           </div>

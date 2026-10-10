@@ -4,7 +4,6 @@ import { Hero } from './components/Hero';
 import { About } from './components/About';
 import { Works } from './components/Works';
 import { Services } from './components/Services';
-import { QuoteEstimator } from './components/QuoteEstimator';
 import { Contact } from './components/Contact';
 import { Footer } from './components/Footer';
 import { ProjectModal } from './components/ProjectModal';
@@ -30,14 +29,6 @@ export default function App() {
     }
   };
 
-  const handleApplyEstimate = (summary: string) => {
-    setInquiryPreload(`Hi Agnes! I calculated this estimate on your portfolio:\n${summary}\n\nCould we discuss project details and timeline?`);
-    const contactSection = document.getElementById('contact');
-    if (contactSection) {
-      contactSection.scrollIntoView({ behavior: 'smooth' });
-    }
-  };
-
   return (
     <div data-template-id="__page-root" className="min-h-screen bg-[#fff9f3] text-[#383047] font-sans antialiased selection:bg-[#f7c9d8] selection:text-[#383047]">
       <div className="page-shell bg-grain min-h-screen flex flex-col">
@@ -57,11 +48,6 @@ export default function App() {
 
           {/* Services & Process */}
           <Services />
-
-          {/* Interactive Estimator */}
-          <section className="max-w-[1160px] mx-auto px-5 sm:px-8">
-            <QuoteEstimator onApplyEstimate={handleApplyEstimate} />
-          </section>
 
           {/* Contact & Inquiry Section */}
           <Contact initialMessage={inquiryPreload} />

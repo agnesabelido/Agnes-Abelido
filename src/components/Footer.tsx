@@ -16,20 +16,25 @@ export const Footer: React.FC = () => {
         {/* Brand signature */}
         <div className="flex items-center gap-2">
           <span className="font-display font-bold text-lg text-[#383047]">
-            {FREELANCER_INFO.name}
+            Portfolio
           </span>
-          <span className="text-xs text-[#6b607c]">· Creative Freelancer Portfolio</span>
+          <span className="text-xs text-[#6b607c]">· Creative Design & Media</span>
         </div>
 
         {/* Footer Text matching template */}
-        <p
-          data-template-id="footer-text"
-          className="canva-text text-xs text-[#6b607c] flex items-center justify-center gap-1.5"
-        >
-          <span>© {new Date().getFullYear()} {FREELANCER_INFO.name}. Designed with</span>
-          <Heart className="w-3.5 h-3.5 text-[#b75078] fill-current inline" />
-          <span>and dedication. All rights reserved.</span>
-        </p>
+        <div className="text-center">
+          <p className="font-display italic text-xs text-[#6b607c] mb-1">
+            “Turning ideas into visual stories, one meaningful design at a time.”
+          </p>
+          <p
+            data-template-id="footer-text"
+            className="canva-text text-xs text-[#6b607c] flex items-center justify-center gap-1.5"
+          >
+            <span>© {new Date().getFullYear()} Portfolio. Designed with</span>
+            <Heart className="w-3.5 h-3.5 text-[#b75078] fill-current inline" />
+            <span>and dedication. All rights reserved.</span>
+          </p>
+        </div>
 
         {/* Back to top button */}
         <button

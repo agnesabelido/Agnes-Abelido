@@ -1,6 +1,7 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ProjectItem } from '../data/portfolioData';
-import { X, ArrowLeft, ArrowRight, ExternalLink, CheckCircle2, Sparkles, Send } from 'lucide-react';
+import { X, ArrowLeft, ArrowRight, ExternalLink, CheckCircle2, Sparkles, Send, Camera, Video, RotateCcw, Link as LinkIcon } from 'lucide-react';
+import { saveMediaItem, deleteMediaItem } from '../utils/mediaStorage';
 
 interface ProjectModalProps {
   project: ProjectItem | null;
@@ -17,6 +18,10 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
   allProjects,
   onInquire
 }) => {
+  const modalFileInputRef = useRef<HTMLInputElement>(null);
+  const [urlInput, setUrlInput] = useState('');
+  const [showUrlField, setShowUrlField] = useState(false);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -39,6 +44,31 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
   const prevProject = currentIndex > 0 ? allProjects[currentIndex - 1] : null;
   const nextProject = currentIndex < allProjects.length - 1 ? allProjects[currentIndex + 1] : null;
 
+  const isVideoProject =
+    project.category === 'videos' ||
+    Boolean(project.videoUrl) ||
+    (project.imageUrl && (
+      project.imageUrl.startsWith('data:video') ||
+      project.imageUrl.startsWith('blob:') ||
+      project.imageUrl.endsWith('.mp4') ||
+      project.imageUrl.endsWith('.webm') ||
+      project.imageUrl.endsWith('.mov')
+    ));
+
+  const handleApplyUrl = () => {
+    if (!urlInput.trim()) return;
+    const url = urlInput.trim();
+    const isVideoLink = url.endsWith('.mp4') || url.endsWith('.webm') || url.includes('youtube.com') || url.includes('youtu.be') || url.includes('vimeo.com');
+    saveMediaItem(`agnes_work_img_${project.id}`, url).catch(() => {});
+    onSelectProject({
+      ...project,
+      imageUrl: isVideoLink ? (project.imageUrl || url) : url,
+      videoUrl: isVideoLink ? url : undefined
+    });
+    setUrlInput('');
+    setShowUrlField(false);
+  };
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-sm animate-fadeIn"
@@ -56,7 +86,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
           type="button"
           onClick={onClose}
           aria-label="Close project modal"
-          className="absolute top-5 right-5 w-10 h-10 rounded-full bg-white/80 hover:bg-white text-[#383047] hover:text-[#b75078] flex items-center justify-center border border-[#e7d6d9] shadow-xs transition-colors z-10"
+          className="absolute top-5 right-5 w-10 h-10 rounded-full bg-white/80 hover:bg-white text-[#383047] hover:text-[#b75078] flex items-center justify-center border border-[#e7d6d9] shadow-xs transition-colors z-10 cursor-pointer"
         >
           <X className="w-5 h-5" />
         </button>
@@ -81,14 +111,111 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
           {project.title}
         </h2>
 
-        {/* Hero Visual Preview */}
-        <div className="relative rounded-[24px] overflow-hidden border border-[#e7d6d9] mb-8 bg-[#f4ecfc]/40 aspect-[16/10] max-h-[460px]">
-          <img
-            src={project.imageUrl}
-            alt={project.title}
-            className="w-full h-full object-cover object-center"
+        {/* Hero Visual or Video Preview */}
+        <div className="relative rounded-[24px] overflow-hidden border border-[#e7d6d9] mb-4 bg-black/5 aspect-[16/10] max-h-[460px] group flex items-center justify-center">
+          <input
+            type="file"
+            ref={modalFileInputRef}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) {
+                if (file.type.startsWith('video/')) {
+                  const objectUrl = URL.createObjectURL(file);
+                  onSelectProject({ ...project, videoUrl: objectUrl });
+                  saveMediaItem(`agnes_work_img_${project.id}`, file).catch(() => {});
+                } else {
+                  const reader = new FileReader();
+                  reader.onload = (event) => {
+                    const result = event.target?.result as string;
+                    if (result) {
+                      saveMediaItem(`agnes_work_img_${project.id}`, result).catch(() => {});
+                      onSelectProject({ ...project, imageUrl: result });
+                    }
+                  };
+                  reader.readAsDataURL(file);
+                }
+              }
+              e.target.value = '';
+            }}
+            accept="image/*,video/*,video/mp4,video/webm,video/quicktime"
+            className="hidden"
           />
+
+          {isVideoProject ? (
+            <video
+              src={project.videoUrl || project.imageUrl}
+              controls
+              autoPlay
+              playsInline
+              className="w-full h-full object-contain bg-black"
+            />
+          ) : (
+            <img
+              src={project.imageUrl}
+              alt={project.title}
+              className="w-full h-full object-cover object-center"
+            />
+          )}
+
+          {/* Edit Picture / Upload Video button inside modal */}
+          <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => modalFileInputRef.current?.click()}
+              title="Upload New Video or Photo"
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white/95 hover:bg-white text-[#b75078] text-xs font-bold shadow-md backdrop-blur-md border border-white/60 transition-all cursor-pointer hover:-translate-y-0.5"
+            >
+              {project.category === 'videos' ? (
+                <>
+                  <Video className="w-3.5 h-3.5" />
+                  <span>Upload Video / Photo</span>
+                </>
+              ) : (
+                <>
+                  <Camera className="w-3.5 h-3.5" />
+                  <span>Change Media</span>
+                </>
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setShowUrlField((prev) => !prev)}
+              title="Add Video/Image Web Link"
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-white/95 hover:bg-white text-[#383047] text-xs font-semibold shadow-md backdrop-blur-md border border-white/60 transition-all cursor-pointer"
+            >
+              <LinkIcon className="w-3 h-3 text-[#6b607c]" />
+              <span className="hidden sm:inline">Web Link</span>
+            </button>
+          </div>
         </div>
+
+        {/* Optional Web Link Input Bar */}
+        {showUrlField && (
+          <div className="mb-6 p-3 rounded-2xl bg-white border border-[#e7d6d9] flex items-center gap-2 animate-fade-in shadow-xs">
+            <input
+              type="url"
+              placeholder="Paste direct MP4 video link or image URL (https://...)"
+              value={urlInput}
+              onChange={(e) => setUrlInput(e.target.value)}
+              className="flex-1 px-3 py-1.5 rounded-xl border border-[#e7d6d9] text-xs focus:outline-hidden focus:border-[#b75078] bg-[#fff9f3]/40 text-[#383047]"
+            />
+            <button
+              type="button"
+              onClick={handleApplyUrl}
+              className="px-4 py-1.5 rounded-xl bg-[#b75078] hover:bg-[#9c3b63] text-white text-xs font-bold cursor-pointer"
+            >
+              Apply
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowUrlField(false)}
+              className="px-2 py-1 text-xs text-[#6b607c] hover:text-[#383047] cursor-pointer"
+            >
+              Cancel
+            </button>
+          </div>
+        )}
 
         {/* Details Grid */}
         <div className="grid md:grid-cols-[1.2fr_.8fr] gap-8 mb-8">
