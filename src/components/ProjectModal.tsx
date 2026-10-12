@@ -11,6 +11,14 @@ interface ProjectModalProps {
   onInquire: (projectName: string) => void;
 }
 
+const normalizeAssetUrl = (url?: string) => {
+  if (!url) return '';
+  if (url.startsWith('/src/assets/images/')) {
+    return url.replace('/src/assets/images/', '/assets/images/');
+  }
+  return url;
+};
+
 export const ProjectModal: React.FC<ProjectModalProps> = ({
   project,
   onClose,
@@ -44,15 +52,18 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
   const prevProject = currentIndex > 0 ? allProjects[currentIndex - 1] : null;
   const nextProject = currentIndex < allProjects.length - 1 ? allProjects[currentIndex + 1] : null;
 
+  const resolvedImageUrl = normalizeAssetUrl(project.imageUrl);
+  const resolvedVideoUrl = normalizeAssetUrl(project.videoUrl);
+
   const isVideoProject =
     project.category === 'videos' ||
-    Boolean(project.videoUrl) ||
-    (project.imageUrl && (
-      project.imageUrl.startsWith('data:video') ||
-      project.imageUrl.startsWith('blob:') ||
-      project.imageUrl.endsWith('.mp4') ||
-      project.imageUrl.endsWith('.webm') ||
-      project.imageUrl.endsWith('.mov')
+    Boolean(resolvedVideoUrl) ||
+    (resolvedImageUrl && (
+      resolvedImageUrl.startsWith('data:video') ||
+      resolvedImageUrl.startsWith('blob:') ||
+      resolvedImageUrl.endsWith('.mp4') ||
+      resolvedImageUrl.endsWith('.webm') ||
+      resolvedImageUrl.endsWith('.mov')
     ));
 
   const handleApplyUrl = () => {
@@ -69,12 +80,23 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
     setShowUrlField(false);
   };
 
+  const categoryLabel =
+    project.category === 'dpblasts'
+      ? 'DP Blast'
+      : project.category === 'mockups'
+      ? 'Merch Mockup'
+      : project.category === 'videos'
+      ? 'Campus Video'
+      : project.category === 'ai'
+      ? (isVideoProject ? 'AI Generated Video' : 'AI Generated Image')
+      : 'Pubmat & Graphic';
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-sm animate-fadeIn"
       role="dialog"
       aria-modal="true"
-      aria-labelledby="modal-title"
+      aria-labelledby="modal-category-badge"
       onClick={onClose}
     >
       <div
@@ -91,25 +113,13 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
           <X className="w-5 h-5" />
         </button>
 
-        {/* Modal Header */}
-        <div className="flex flex-wrap items-center gap-3 mb-4">
-          <span className="text-xs font-semibold uppercase tracking-wider text-[#b75078] bg-[#faebf2] px-3 py-1 rounded-full">
-            {project.category === 'dpblasts'
-              ? 'DP BLASTS'
-              : project.category === 'mockups'
-              ? 'MERCH MOCKUPS'
-              : project.category.toUpperCase()}
+        {/* Modal Category Header - No Names */}
+        <div id="modal-category-badge" className="flex flex-wrap items-center gap-3 mb-5">
+          <span className="text-xs font-bold uppercase tracking-wider text-[#b75078] bg-[#faebf2] px-3.5 py-1.5 rounded-full border border-[#f7c9d8]">
+            {categoryLabel}
           </span>
-          <span className="text-xs text-[#6b607c]">· Client: {project.client}</span>
-          <span className="text-xs text-[#6b607c]">· {project.year}</span>
+          <span className="text-xs text-[#6b607c]">· Work Sample</span>
         </div>
-
-        <h2
-          id="modal-title"
-          className="font-display text-2xl sm:text-3xl lg:text-4xl font-bold text-[#383047] mb-6 pr-8"
-        >
-          {project.title}
-        </h2>
 
         {/* Hero Visual or Video Preview */}
         <div className="relative rounded-[24px] overflow-hidden border border-[#e7d6d9] mb-4 bg-black/5 aspect-[16/10] max-h-[460px] group flex items-center justify-center">
@@ -143,7 +153,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
 
           {isVideoProject ? (
             <video
-              src={project.videoUrl || project.imageUrl}
+              src={resolvedVideoUrl || resolvedImageUrl}
               controls
               autoPlay
               playsInline
@@ -151,8 +161,8 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
             />
           ) : (
             <img
-              src={project.imageUrl}
-              alt={project.title}
+              src={resolvedImageUrl}
+              alt={categoryLabel}
               className="w-full h-full object-cover object-center"
             />
           )}
@@ -221,7 +231,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
         <div className="grid md:grid-cols-[1.2fr_.8fr] gap-8 mb-8">
           <div>
             <h3 className="text-sm font-bold uppercase tracking-wider text-[#383047] mb-3">
-              Project Overview & Objective
+              Overview & Concept
             </h3>
             <p className="text-sm sm:text-base text-[#554b65] leading-relaxed mb-6">
               {project.fullDescription}
@@ -271,12 +281,12 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
               type="button"
               onClick={() => {
                 onClose();
-                onInquire(project.title);
+                onInquire(categoryLabel);
               }}
-              className="w-full inline-flex items-center justify-center gap-2 bg-[#b75078] hover:bg-[#9c3b63] text-white py-3 rounded-full text-xs font-bold uppercase tracking-wide transition-all shadow-md hover:-translate-y-0.5"
+              className="w-full inline-flex items-center justify-center gap-2 bg-[#b75078] hover:bg-[#9c3b63] text-white py-3 rounded-full text-xs font-bold uppercase tracking-wide transition-all shadow-md hover:-translate-y-0.5 cursor-pointer"
             >
               <Send className="w-3.5 h-3.5" />
-              <span>Inquire About Similar Project</span>
+              <span>Inquire About Similar Work</span>
             </button>
           </div>
         </div>
@@ -289,13 +299,12 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
             onClick={() => prevProject && onSelectProject(prevProject)}
             className={`inline-flex items-center gap-2 text-xs font-semibold px-4 py-2 rounded-full border transition-all ${
               prevProject
-                ? 'border-[#e7d6d9] text-[#383047] hover:border-[#b75078] hover:text-[#b75078]'
+                ? 'border-[#e7d6d9] text-[#383047] hover:border-[#b75078] hover:text-[#b75078] cursor-pointer'
                 : 'border-transparent text-gray-400 cursor-not-allowed opacity-50'
             }`}
           >
             <ArrowLeft className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Previous:</span>
-            <span className="truncate max-w-[140px]">{prevProject?.title || 'None'}</span>
+            <span>Previous Work</span>
           </button>
 
           <span className="text-xs text-[#6b607c]">
@@ -308,12 +317,11 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
             onClick={() => nextProject && onSelectProject(nextProject)}
             className={`inline-flex items-center gap-2 text-xs font-semibold px-4 py-2 rounded-full border transition-all ${
               nextProject
-                ? 'border-[#e7d6d9] text-[#383047] hover:border-[#b75078] hover:text-[#b75078]'
+                ? 'border-[#e7d6d9] text-[#383047] hover:border-[#b75078] hover:text-[#b75078] cursor-pointer'
                 : 'border-transparent text-gray-400 cursor-not-allowed opacity-50'
             }`}
           >
-            <span className="hidden sm:inline">Next:</span>
-            <span className="truncate max-w-[140px]">{nextProject?.title || 'None'}</span>
+            <span>Next Work</span>
             <ArrowRight className="w-3.5 h-3.5" />
           </button>
         </div>

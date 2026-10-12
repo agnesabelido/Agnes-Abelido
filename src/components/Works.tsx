@@ -8,6 +8,14 @@ interface WorksProps {
 }
 
 // Visual Card with direct Picture & Video Editing feature
+const normalizeAssetUrl = (url?: string) => {
+  if (!url) return '';
+  if (url.startsWith('/src/assets/images/')) {
+    return url.replace('/src/assets/images/', '/assets/images/');
+  }
+  return url;
+};
+
 const WorkVisualCard: React.FC<{
   project: ProjectItem;
   onOpenProject: (project: ProjectItem) => void;
@@ -17,19 +25,19 @@ const WorkVisualCard: React.FC<{
     try {
       const saved = localStorage.getItem(`agnes_work_img_${project.id}`);
       if (saved && (saved.startsWith('data:') || saved.startsWith('blob:') || saved.startsWith('/') || saved.startsWith('http'))) {
-        return saved;
+        return normalizeAssetUrl(saved);
       }
     } catch {
       // ignore
     }
-    return project.videoUrl || project.imageUrl;
+    return normalizeAssetUrl(project.videoUrl || project.imageUrl);
   });
 
   useEffect(() => {
     let isMounted = true;
     getMediaItem(`agnes_work_img_${project.id}`).then((stored) => {
       if (isMounted && stored) {
-        setCurrentImg(stored);
+        setCurrentImg(normalizeAssetUrl(stored));
       }
     });
     return () => {
@@ -373,7 +381,7 @@ export const Works: React.FC<WorksProps> = ({ onOpenProject }) => {
                 <span className="text-xs font-bold uppercase tracking-wider text-[#b75078] bg-[#faebf2] px-3.5 py-1.5 rounded-full border border-[#f7c9d8]">
                   Pubmats & Graphics
                 </span>
-                <span className="text-xs text-[#6b607c]">Event Posters & Social Pubmats ({pubmatProjects.length} frames)</span>
+                <span className="text-xs text-[#6b607c]">Event Posters & Social Pubmats</span>
               </div>
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {pubmatProjects.map((p) => (
@@ -398,7 +406,7 @@ export const Works: React.FC<WorksProps> = ({ onOpenProject }) => {
                 <span className="text-xs font-bold uppercase tracking-wider text-[#b75078] bg-[#faebf2] px-3.5 py-1.5 rounded-full border border-[#f7c9d8]">
                   Merch Mockups
                 </span>
-                <span className="text-xs text-[#6b607c]">Apparel, Pins & Brand Mockups ({mockupProjects.length} frames)</span>
+                <span className="text-xs text-[#6b607c]">Apparel, Pins & Brand Mockups</span>
               </div>
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {mockupProjects.map((p) => (
@@ -498,7 +506,7 @@ export const Works: React.FC<WorksProps> = ({ onOpenProject }) => {
                   <div className="flex items-center gap-2">
                     <Sparkles className="w-4 h-4 text-[#8e44ad]" />
                     <span className="text-xs font-bold uppercase tracking-wider text-[#8e44ad] bg-[#f4ecfc] px-3.5 py-1.5 rounded-full border border-[#e2cbf7]">
-                      AI Generated Videos (5 Works)
+                      AI Generated Videos
                     </span>
                   </div>
                   <span className="text-xs text-[#6b607c]">Generative Motion Concepts</span>

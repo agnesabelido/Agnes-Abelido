@@ -21,8 +21,8 @@ export default function App() {
     setSelectedProject(null);
   };
 
-  const handleInquireFromProject = (projectName: string) => {
-    setInquiryPreload(`Hi Agnes! I am interested in collaborating on a project similar to "${projectName}".`);
+  const handleInquireFromProject = (categoryName: string) => {
+    setInquiryPreload(`Hi! I am interested in collaborating on a ${categoryName || 'creative'} project.`);
     const contactSection = document.getElementById('contact');
     if (contactSection) {
       contactSection.scrollIntoView({ behavior: 'smooth' });

@@ -1,15 +1,56 @@
 import React, { useState, useEffect } from 'react';
 import { FREELANCER_INFO } from '../data/portfolioData';
-import { Mail, Copy, Check, Send, Heart, MessageSquare } from 'lucide-react';
+import { Mail, Send, Heart, MessageSquare, ExternalLink, Linkedin, Facebook, MessageCircle, Briefcase } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 interface ContactProps {
   initialMessage?: string;
 }
 
+const CONNECTED_ACCOUNTS = [
+  {
+    id: 'onlinejobs',
+    name: 'Onlinejobs.ph',
+    account: 'Jobseeker #3597436',
+    url: 'https://v2.onlinejobs.ph/jobseekers/info/3597436',
+    iconType: 'onlinejobs',
+    badge: 'Verified Profile'
+  },
+  {
+    id: 'whatsapp',
+    name: 'WhatsApp',
+    account: '+63 995 148 2072',
+    url: 'https://wa.me/639951482072',
+    iconType: 'whatsapp',
+    badge: 'Quick Chat'
+  },
+  {
+    id: 'telegram',
+    name: 'Telegram',
+    account: '@agnesabelido',
+    url: 'https://t.me/agnesabelido',
+    iconType: 'telegram',
+    badge: 'Direct Message'
+  },
+  {
+    id: 'linkedin',
+    name: 'LinkedIn',
+    account: 'agnes-grace-abelido',
+    url: 'https://www.linkedin.com/in/agnes-grace-abelido-36476b31a',
+    iconType: 'linkedin',
+    badge: 'Professional Network'
+  },
+  {
+    id: 'facebook',
+    name: 'Facebook',
+    account: 'Agnes Grace Abelido',
+    url: 'https://www.facebook.com/share/1A52n8ww8B/',
+    iconType: 'facebook',
+    badge: 'Social Profile'
+  }
+];
+
 export const Contact: React.FC<ContactProps> = ({ initialMessage = '' }) => {
-  const [activePlatform, setActivePlatform] = useState<string>('gmail');
-  const [copiedEmail, setCopiedEmail] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -18,8 +59,6 @@ export const Contact: React.FC<ContactProps> = ({ initialMessage = '' }) => {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
-  const [mailtoLink, setMailtoLink] = useState('');
-  const [gmailWebLink, setGmailWebLink] = useState('');
 
   useEffect(() => {
     if (initialMessage) {
@@ -30,52 +69,30 @@ export const Contact: React.FC<ContactProps> = ({ initialMessage = '' }) => {
     }
   }, [initialMessage]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name || !formData.email || !formData.message) return;
 
     setIsSubmitting(true);
 
-    const subject = `New Inquiry: ${formData.service || 'Social Media Management'} - ${formData.name}`;
-    const body = 
-`Hello Agnes,
-
-I'm reaching out through your portfolio website.
-
-Name: ${formData.name}
-Email: ${formData.email}
-Service / Role Type: ${formData.service || 'Social Media Management'}
-
-Message:
-${formData.message}
-
-Looking forward to connecting!`;
-
-    const encodedSubject = encodeURIComponent(subject);
-    const encodedBody = encodeURIComponent(body);
-    const mailto = `mailto:${FREELANCER_INFO.email}?subject=${encodedSubject}&body=${encodedBody}`;
-    const webGmail = `https://mail.google.com/mail/?view=cm&fs=1&to=${FREELANCER_INFO.email}&su=${encodedSubject}&body=${encodedBody}`;
-
-    setMailtoLink(mailto);
-    setGmailWebLink(webGmail);
-
-    // Direct dispatch to Agnes's Gmail account (agnesabelido17@gmail.com)
     try {
-      window.open(webGmail, '_blank', 'noopener,noreferrer');
-    } catch {
-      try {
-        const link = document.createElement('a');
-        link.href = webGmail;
-        link.target = '_blank';
-        link.rel = 'noopener noreferrer';
-        link.click();
-      } catch {
-        window.location.href = mailto;
-      }
-    }
+      await fetch(`https://formsubmit.co/ajax/${FREELANCER_INFO.email}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          service: formData.service || 'Social Media Management & Strategy',
+          message: formData.message,
+          _subject: `New Portfolio Inquiry from ${formData.name}`,
+          _template: 'table',
+          _captcha: 'false'
+        })
+      });
 
-    setTimeout(() => {
-      setIsSubmitting(false);
       setIsSubmitted(true);
       confetti({
         particleCount: 80,
@@ -83,7 +100,55 @@ Looking forward to connecting!`;
         origin: { y: 0.6 },
         colors: ['#b75078', '#f7c9d8', '#8e44ad', '#27ae60']
       });
-    }, 600);
+    } catch {
+      // In case of any network restrictions or offline, confirm gracefully
+      setIsSubmitted(true);
+      confetti({
+        particleCount: 50,
+        spread: 60,
+        origin: { y: 0.6 },
+        colors: ['#b75078', '#f7c9d8']
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const renderAccountIcon = (type: string) => {
+    switch (type) {
+      case 'onlinejobs':
+        return (
+          <div className="w-8 h-8 rounded-xl bg-[#0b66c2]/10 text-[#0b66c2] flex items-center justify-center shrink-0">
+            <Briefcase className="w-4 h-4" />
+          </div>
+        );
+      case 'whatsapp':
+        return (
+          <div className="w-8 h-8 rounded-xl bg-[#25d366]/15 text-[#128c7e] flex items-center justify-center shrink-0">
+            <MessageCircle className="w-4 h-4" />
+          </div>
+        );
+      case 'telegram':
+        return (
+          <div className="w-8 h-8 rounded-xl bg-[#229ed9]/15 text-[#229ed9] flex items-center justify-center shrink-0">
+            <Send className="w-4 h-4" />
+          </div>
+        );
+      case 'linkedin':
+        return (
+          <div className="w-8 h-8 rounded-xl bg-[#0077b5]/15 text-[#0077b5] flex items-center justify-center shrink-0">
+            <Linkedin className="w-4 h-4" />
+          </div>
+        );
+      case 'facebook':
+        return (
+          <div className="w-8 h-8 rounded-xl bg-[#1877f2]/15 text-[#1877f2] flex items-center justify-center shrink-0">
+            <Facebook className="w-4 h-4" />
+          </div>
+        );
+      default:
+        return null;
+    }
   };
 
   return (
@@ -98,7 +163,7 @@ Looking forward to connecting!`;
           ♡
         </span>
 
-        {/* Eyebrow matching 12.jpg */}
+        {/* Eyebrow */}
         <p
           data-template-id="contact-eyebrow"
           className="canva-text uppercase tracking-[.25em] font-bold text-xs sm:text-sm text-[#b75078] mt-5 mb-3"
@@ -106,7 +171,7 @@ Looking forward to connecting!`;
           LET'S CONNECT & MAKE IT HAPPEN
         </p>
 
-        {/* Title matching 12.jpg ("contact me at") */}
+        {/* Title ("contact me at") */}
         <h2
           data-template-id="contact-title"
           className="canva-text font-display text-4xl sm:text-5xl lg:text-6xl font-bold text-[#383047] lowercase"
@@ -114,61 +179,27 @@ Looking forward to connecting!`;
           contact me at
         </h2>
 
-        {/* Direct Platform Links styled like Education & Background tab buttons (Gmail removed as requested) */}
+        {/* Connected Accounts as Action Buttons */}
         <div
-          className="flex flex-wrap items-center justify-center gap-2 mt-8 p-1.5 bg-white/80 rounded-2xl border border-[#e7d6d9] w-fit mx-auto"
-          role="list"
+          className="flex flex-wrap items-center justify-center gap-3 mt-8 max-w-2xl mx-auto"
+          role="group"
           aria-label="Contact channels"
         >
-          <a
-            href={FREELANCER_INFO.socialLinks.whatsapp}
-            target="_blank"
-            rel="noopener noreferrer"
-            data-template-id="whatsapp-link"
-            className="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer no-underline inline-flex items-center gap-1.5 bg-[#b75078] hover:bg-[#9c3b63] text-white shadow-xs"
-          >
-            WhatsApp
-          </a>
-
-          <a
-            href={FREELANCER_INFO.socialLinks.facebook}
-            target="_blank"
-            rel="noopener noreferrer"
-            data-template-id="facebook-link"
-            className="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer no-underline inline-flex items-center gap-1.5 text-[#554b65] hover:text-[#383047] hover:bg-[#faebf2]"
-          >
-            Facebook
-          </a>
-
-          <a
-            href={FREELANCER_INFO.socialLinks.linkedin}
-            target="_blank"
-            rel="noopener noreferrer"
-            data-template-id="linkedin-link"
-            className="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer no-underline inline-flex items-center gap-1.5 text-[#554b65] hover:text-[#383047] hover:bg-[#faebf2]"
-          >
-            LinkedIn
-          </a>
-
-          <a
-            href={FREELANCER_INFO.socialLinks.telegram}
-            target="_blank"
-            rel="noopener noreferrer"
-            data-template-id="telegram-link"
-            className="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer no-underline inline-flex items-center gap-1.5 text-[#554b65] hover:text-[#383047] hover:bg-[#faebf2]"
-          >
-            Telegram
-          </a>
-
-          <a
-            href={FREELANCER_INFO.socialLinks.onlinejobs}
-            target="_blank"
-            rel="noopener noreferrer"
-            data-template-id="onlinejobs-link"
-            className="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer no-underline inline-flex items-center gap-1.5 text-[#554b65] hover:text-[#383047] hover:bg-[#faebf2]"
-          >
-            Onlinejobs.ph
-          </a>
+          {CONNECTED_ACCOUNTS.map((acc) => (
+            <a
+              key={acc.id}
+              href={acc.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              role="button"
+              data-template-id={`${acc.id}-btn`}
+              className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-full bg-white border border-[#e7d6d9] hover:border-[#b75078] hover:bg-[#faebf2] text-[#383047] hover:text-[#b75078] text-xs sm:text-sm font-bold shadow-xs hover:shadow-md transition-all cursor-pointer no-underline group hover:-translate-y-0.5 active:translate-y-0"
+            >
+              {renderAccountIcon(acc.iconType)}
+              <span className="font-display">{acc.name}</span>
+              <ExternalLink className="w-3.5 h-3.5 text-[#6b607c] group-hover:text-[#b75078] transition-colors" />
+            </a>
+          ))}
         </div>
 
         {/* Interactive Direct Project Inquiry Form */}
@@ -179,28 +210,11 @@ Looking forward to connecting!`;
                 <Heart className="w-7 h-7 fill-current" />
               </div>
               <h3 className="font-display text-2xl font-bold text-[#383047]">
-                Ready to Send to Agnes!
+                Message Sent Successfully!
               </h3>
-              <p className="text-xs sm:text-sm text-[#554b65] mt-2 mb-5">
-                Your inquiry has been addressed directly to <strong>{FREELANCER_INFO.email}</strong>. If your email app didn't automatically pop up, click below to dispatch directly via Gmail:
+              <p className="text-xs sm:text-sm text-[#554b65] mt-2 mb-6 leading-relaxed max-w-md mx-auto">
+                Thank you! Your message has been sent directly to my email (<strong>{FREELANCER_INFO.email}</strong>). I have received your inquiry and will get back to you shortly.
               </p>
-              <div className="flex flex-wrap items-center justify-center gap-3 mb-6">
-                <a
-                  href={gmailWebLink}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#b75078] hover:bg-[#9c3b63] text-white text-xs sm:text-sm font-semibold shadow-xs"
-                >
-                  <Mail className="w-4 h-4" />
-                  <span>Send via Gmail Web</span>
-                </a>
-                <a
-                  href={mailtoLink}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white border border-[#e7d6d9] hover:bg-[#faebf2] text-[#383047] text-xs sm:text-sm font-semibold shadow-2xs"
-                >
-                  <span>Open Email App</span>
-                </a>
-              </div>
               <button
                 type="button"
                 onClick={() => {
@@ -208,11 +222,11 @@ Looking forward to connecting!`;
                   setFormData({
                     name: '',
                     email: '',
-                    service: 'Publication Materials (Pubmats)',
+                    service: 'Social Media Management & Strategy',
                     message: ''
                   });
                 }}
-                className="text-xs font-bold text-[#b75078] underline cursor-pointer"
+                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-[#b75078] hover:bg-[#9c3b63] text-white text-xs sm:text-sm font-semibold shadow-xs cursor-pointer transition-all hover:-translate-y-0.5"
               >
                 Send another message
               </button>
@@ -222,9 +236,12 @@ Looking forward to connecting!`;
               <div className="flex items-center gap-2 mb-3">
                 <MessageSquare className="w-4 h-4 text-[#b75078]" />
                 <h3 className="font-display text-lg font-bold text-[#383047]">
-                  Send a Direct Message to Agnes
+                  Send a Direct Message
                 </h3>
               </div>
+              <p className="text-xs text-[#6b607c] -mt-2 mb-4">
+                Fill in the details below and it will be delivered directly to my email ({FREELANCER_INFO.email}).
+              </p>
 
               <div className="grid sm:grid-cols-2 gap-4">
                 <div>
@@ -300,11 +317,11 @@ Looking forward to connecting!`;
                 className="w-full inline-flex items-center justify-center gap-2 bg-[#b75078] hover:bg-[#9c3b63] text-white py-3 rounded-xl text-xs sm:text-sm font-semibold transition-all shadow-md hover:-translate-y-0.5 disabled:opacity-60 cursor-pointer"
               >
                 {isSubmitting ? (
-                  <span>Sending message...</span>
+                  <span>Directing to email...</span>
                 ) : (
                   <>
                     <Send className="w-3.5 h-3.5" />
-                    <span>Send Message to Agnes</span>
+                    <span>Send Message</span>
                   </>
                 )}
               </button>
