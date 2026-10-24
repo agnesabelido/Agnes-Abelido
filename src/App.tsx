@@ -7,6 +7,7 @@ import { Services } from './components/Services';
 import { Contact } from './components/Contact';
 import { Footer } from './components/Footer';
 import { ProjectModal } from './components/ProjectModal';
+import { MediaDeployManager } from './components/MediaDeployManager';
 import { PROJECTS, ProjectItem } from './data/portfolioData';
 
 export default function App() {
@@ -70,6 +71,9 @@ export default function App() {
           allProjects={activeProjectsList}
           onInquire={handleInquireFromProject}
         />
+
+        {/* Cloudflare Media Sync & Uploader */}
+        <MediaDeployManager />
       </div>
     </div>
   );

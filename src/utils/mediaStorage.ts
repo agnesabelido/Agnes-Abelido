@@ -156,6 +156,61 @@ export async function saveMediaItem(
   } catch (err) {
     console.warn(`Failed to save media in IndexedDB:`, err);
   }
+
+  // Also sync directly to repository disk on server
+  syncMediaToServer(key, value, isVid).catch(() => {});
+}
+
+/**
+ * Convert a Blob to base64 Data URL
+ */
+export function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+/**
+ * Synchronize a single media asset directly to the backend repository files
+ */
+export async function syncMediaToServer(
+  key: string,
+  value: string | Blob,
+  isVideo = false
+): Promise<string | null> {
+  if (typeof window === 'undefined') return null;
+  try {
+    let base64Data = '';
+    if (value instanceof Blob) {
+      base64Data = await blobToBase64(value);
+      isVideo = isVideo || value.type.startsWith('video/');
+    } else if (typeof value === 'string') {
+      if (value.startsWith('data:')) {
+        base64Data = value;
+      } else if (value.startsWith('blob:')) {
+        const resp = await fetch(value);
+        const b = await resp.blob();
+        base64Data = await blobToBase64(b);
+        isVideo = isVideo || b.type.startsWith('video/');
+      }
+    }
+
+    if (!base64Data) return null;
+
+    const res = await fetch('/api/save-media-asset', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key, base64Data, isVideo })
+    });
+    if (!res.ok) return null;
+    const json = await res.json();
+    return json.url || null;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -245,6 +300,58 @@ export async function deleteMediaItem(key: string): Promise<void> {
 }
 
 /**
+ * Auto-sync all stored IndexedDB & localStorage media to the server's repository disk
+ */
+export async function autoSyncAllMediaToServer(): Promise<number> {
+  if (typeof window === 'undefined') return 0;
+  const itemsToSync: Array<{ key: string; base64Data: string; isVideo: boolean }> = [];
+
+  try {
+    const db = await getDB();
+    await new Promise<void>((resolve) => {
+      const tx = db.transaction(STORE_NAME, 'readonly');
+      const store = tx.objectStore(STORE_NAME);
+      const req = store.openCursor();
+      req.onsuccess = async () => {
+        const cursor = req.result;
+        if (cursor) {
+          const key = String(cursor.key);
+          const val = cursor.value;
+          try {
+            if (val instanceof Blob) {
+              const b64 = await blobToBase64(val);
+              const isVid = val.type.startsWith('video/') || key.includes('video');
+              itemsToSync.push({ key, base64Data: b64, isVideo: isVid });
+            } else if (typeof val === 'string' && val.startsWith('data:')) {
+              const isVid = val.startsWith('data:video/') || key.includes('video');
+              itemsToSync.push({ key, base64Data: val, isVideo: isVid });
+            }
+          } catch {}
+          cursor.continue();
+        } else {
+          resolve();
+        }
+      };
+      req.onerror = () => resolve();
+    });
+  } catch {}
+
+  if (itemsToSync.length > 0) {
+    try {
+      const res = await fetch('/api/sync-all-media', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items: itemsToSync })
+      });
+      const data = await res.json();
+      console.log(`Auto-synced ${data.count || 0} media items to project disk!`);
+      return data.count || 0;
+    } catch {}
+  }
+  return 0;
+}
+
+/**
  * Hydrate all cached media from localStorage and IndexedDB immediately on load
  */
 export async function hydrateAllMedia(): Promise<void> {
@@ -295,6 +402,9 @@ export async function hydrateAllMedia(): Promise<void> {
   } catch {}
 
   notifyMediaChanged('__all__', '');
+
+  // Run background auto-sync to ensure everything is on repository disk for Cloudflare
+  autoSyncAllMediaToServer().catch(() => {});
 }
 
 // Auto-run hydration on client
