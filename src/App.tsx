@@ -11,10 +11,16 @@ import { PROJECTS, ProjectItem } from './data/portfolioData';
 
 export default function App() {
   const [selectedProject, setSelectedProject] = useState<ProjectItem | null>(null);
+  const [activeProjectsList, setActiveProjectsList] = useState<ProjectItem[]>(PROJECTS);
   const [inquiryPreload, setInquiryPreload] = useState<string>('');
 
-  const handleOpenProject = (project: ProjectItem) => {
+  const handleOpenProject = (project: ProjectItem, contextProjects?: ProjectItem[]) => {
     setSelectedProject(project);
+    if (contextProjects && contextProjects.length > 0) {
+      setActiveProjectsList(contextProjects);
+    } else {
+      setActiveProjectsList(PROJECTS);
+    }
   };
 
   const handleCloseProject = () => {
@@ -61,7 +67,7 @@ export default function App() {
           project={selectedProject}
           onClose={handleCloseProject}
           onSelectProject={setSelectedProject}
-          allProjects={PROJECTS}
+          allProjects={activeProjectsList}
           onInquire={handleInquireFromProject}
         />
       </div>

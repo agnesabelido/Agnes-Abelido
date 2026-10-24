@@ -213,7 +213,7 @@ export const Contact: React.FC<ContactProps> = ({ initialMessage = '' }) => {
                 Message Sent Successfully!
               </h3>
               <p className="text-xs sm:text-sm text-[#554b65] mt-2 mb-6 leading-relaxed max-w-md mx-auto">
-                Thank you! Your message has been sent directly to my email (<strong>{FREELANCER_INFO.email}</strong>). I have received your inquiry and will get back to you shortly.
+                Thank you! Your message has been sent. I have received your inquiry and will get back to you shortly.
               </p>
               <button
                 type="button"
@@ -239,9 +239,7 @@ export const Contact: React.FC<ContactProps> = ({ initialMessage = '' }) => {
                   Send a Direct Message
                 </h3>
               </div>
-              <p className="text-xs text-[#6b607c] -mt-2 mb-4">
-                Fill in the details below and it will be delivered directly to my email ({FREELANCER_INFO.email}).
-              </p>
+
 
               <div className="grid sm:grid-cols-2 gap-4">
                 <div>
@@ -321,7 +319,7 @@ export const Contact: React.FC<ContactProps> = ({ initialMessage = '' }) => {
                 ) : (
                   <>
                     <Send className="w-3.5 h-3.5" />
-                    <span>Send Message</span>
+                    <span>Send Message to Agnes</span>
                   </>
                 )}
               </button>

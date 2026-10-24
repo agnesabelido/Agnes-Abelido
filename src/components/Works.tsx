@@ -1,13 +1,12 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { PROJECTS, COPYWRITING_PIECES, ProjectItem, CopywritingItem } from '../data/portfolioData';
-import { Eye, Search, Sparkles, BookOpen, Copy, Check, Quote, Tag, Camera, RotateCcw } from 'lucide-react';
-import { saveMediaItem, getMediaItem, deleteMediaItem } from '../utils/mediaStorage';
+import { Eye, Search, Sparkles, BookOpen, Copy, Check } from 'lucide-react';
+import { getSyncMediaItem, getMediaItem, getMediaType } from '../utils/mediaStorage';
 
 interface WorksProps {
-  onOpenProject: (project: ProjectItem) => void;
+  onOpenProject: (project: ProjectItem, contextProjects?: ProjectItem[]) => void;
 }
 
-// Visual Card with direct Picture & Video Editing feature
 const normalizeAssetUrl = (url?: string) => {
   if (!url) return '';
   if (url.startsWith('/src/assets/images/')) {
@@ -19,78 +18,57 @@ const normalizeAssetUrl = (url?: string) => {
 const WorkVisualCard: React.FC<{
   project: ProjectItem;
   onOpenProject: (project: ProjectItem) => void;
-  onToast: (msg: string) => void;
-}> = ({ project, onOpenProject, onToast }) => {
+}> = ({ project, onOpenProject }) => {
   const [currentImg, setCurrentImg] = useState<string>(() => {
-    try {
-      const saved = localStorage.getItem(`agnes_work_img_${project.id}`);
-      if (saved && (saved.startsWith('data:') || saved.startsWith('blob:') || saved.startsWith('/') || saved.startsWith('http'))) {
-        return normalizeAssetUrl(saved);
-      }
-    } catch {
-      // ignore
-    }
-    return normalizeAssetUrl(project.videoUrl || project.imageUrl);
+    return getSyncMediaItem(
+      `agnes_work_img_${project.id}`,
+      normalizeAssetUrl(project.videoUrl || project.imageUrl)
+    );
+  });
+
+  const [mediaType, setMediaType] = useState<'video' | 'image'>(() => {
+    const sync = getSyncMediaItem(`agnes_work_img_${project.id}`);
+    return getMediaType(`agnes_work_img_${project.id}`, sync || project.videoUrl || '');
   });
 
   useEffect(() => {
     let isMounted = true;
+    const initial = getSyncMediaItem(`agnes_work_img_${project.id}`);
+    if (initial) {
+      setCurrentImg(initial);
+      setMediaType(getMediaType(`agnes_work_img_${project.id}`, initial));
+    }
+
     getMediaItem(`agnes_work_img_${project.id}`).then((stored) => {
       if (isMounted && stored) {
-        setCurrentImg(normalizeAssetUrl(stored));
+        setCurrentImg(stored);
+        setMediaType(getMediaType(`agnes_work_img_${project.id}`, stored));
       }
     });
+
+    const handleMediaUpdated = (e: Event) => {
+      const customEvent = e as CustomEvent<{ key: string; url: string }>;
+      if (customEvent.detail) {
+        if (customEvent.detail.key === `agnes_work_img_${project.id}` || customEvent.detail.key === '__all__') {
+          const fresh = getSyncMediaItem(`agnes_work_img_${project.id}`);
+          if (fresh) {
+            setCurrentImg(fresh);
+            setMediaType(getMediaType(`agnes_work_img_${project.id}`, fresh));
+          }
+        }
+      }
+    };
+    window.addEventListener('agnes_media_updated', handleMediaUpdated);
     return () => {
       isMounted = false;
+      window.removeEventListener('agnes_media_updated', handleMediaUpdated);
     };
-  }, [project.id]);
+  }, [project.id, project.imageUrl, project.videoUrl]);
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const isVideoCategory =
     project.category === 'videos' ||
     ['ai-6', 'ai-7', 'ai-8', 'ai-9', 'ai-10'].includes(project.id);
   const isAi = project.category === 'ai';
-  const isCustom = currentImg !== project.imageUrl && currentImg !== project.videoUrl;
-
-  const isVideoFile =
-    currentImg.startsWith('data:video') ||
-    currentImg.startsWith('blob:') ||
-    currentImg.endsWith('.mp4') ||
-    currentImg.endsWith('.webm') ||
-    currentImg.endsWith('.mov') ||
-    Boolean(project.videoUrl);
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (file.type.startsWith('video/')) {
-        const objectUrl = URL.createObjectURL(file);
-        setCurrentImg(objectUrl);
-        // Persist directly into IndexedDB (supports high-res and large video files without 5MB limits)
-        saveMediaItem(`agnes_work_img_${project.id}`, file).catch(() => {});
-        onToast('Video uploaded and saved! 🎬✨');
-      } else {
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          const result = event.target?.result as string;
-          if (result) {
-            setCurrentImg(result);
-            saveMediaItem(`agnes_work_img_${project.id}`, result).catch(() => {});
-            onToast('Picture updated and saved! 🖼️');
-          }
-        };
-        reader.readAsDataURL(file);
-      }
-    }
-    e.target.value = '';
-  };
-
-  const handleReset = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setCurrentImg(project.videoUrl || project.imageUrl);
-    deleteMediaItem(`agnes_work_img_${project.id}`).catch(() => {});
-    onToast('Reset to original media');
-  };
 
   return (
     <article
@@ -98,70 +76,52 @@ const WorkVisualCard: React.FC<{
       onClick={() =>
         onOpenProject({
           ...project,
-          imageUrl: isVideoFile ? (project.imageUrl || currentImg) : currentImg,
-          videoUrl: isVideoFile ? currentImg : undefined
+          imageUrl: currentImg,
+          videoUrl: mediaType === 'video' ? currentImg : undefined
         })
       }
       className="soft-card rounded-[26px] overflow-hidden group cursor-pointer border border-[#563e4b]/12 hover:border-[#b75078] transition-all duration-300 bg-white shadow-xs hover:shadow-xl hover:-translate-y-1 relative"
     >
-      <input
-        type="file"
-        ref={fileInputRef}
-        onChange={handleFileChange}
-        accept="image/*,video/*,video/mp4,video/webm,video/quicktime"
-        className="hidden"
-      />
-      <div className="relative overflow-hidden aspect-[4/3] bg-[#f4ecfc]/40">
-        {isVideoFile && (currentImg.startsWith('data:video') || currentImg.startsWith('blob:') || currentImg.endsWith('.mp4') || currentImg.endsWith('.webm')) ? (
+      <div className="relative overflow-hidden aspect-[4/3] bg-black/5">
+        {mediaType === 'video' ? (
           <video
             src={currentImg}
             muted
             loop
-            autoPlay
             playsInline
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+            preload="metadata"
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 bg-black"
+            onLoadedMetadata={(e) => {
+              try {
+                (e.target as HTMLVideoElement).currentTime = 0.1;
+              } catch {}
+            }}
           />
         ) : (
           <img
             src={currentImg}
-            alt="Work sample"
+            alt={project.title}
+            onError={(e) => {
+              const fallback = normalizeAssetUrl(project.imageUrl || project.videoUrl);
+              if (fallback && (e.target as HTMLImageElement).src !== fallback) {
+                (e.target as HTMLImageElement).src = fallback;
+              }
+            }}
             data-template-id={project.templateImageId || `img-${project.id}`}
             className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
             loading="lazy"
           />
         )}
 
-        {/* Hover overlay with View / Open button and Edit Picture/Video button */}
-        <div className="absolute inset-0 bg-[#383047]/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-          <span className="bg-white/95 text-[#383047] font-semibold text-xs px-3.5 py-2 rounded-full shadow-lg flex items-center gap-1.5 transform translate-y-2 group-hover:translate-y-0 transition-transform">
+        {/* Hover overlay with View Work button */}
+        <div className="absolute inset-0 bg-[#383047]/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+          <span className="bg-white/95 text-[#383047] font-semibold text-xs px-4 py-2 rounded-full shadow-lg flex items-center gap-1.5 transform translate-y-2 group-hover:translate-y-0 transition-transform">
             <Eye className="w-3.5 h-3.5 text-[#b75078]" />
-            <span>View</span>
+            <span>View Work</span>
           </span>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              fileInputRef.current?.click();
-            }}
-            title={isVideoCategory ? "Upload / Replace Video or Photo" : "Upload / Replace Picture"}
-            className="bg-white/95 hover:bg-white text-[#b75078] font-semibold text-xs px-3 py-2 rounded-full shadow-lg flex items-center gap-1.5 transform translate-y-2 group-hover:translate-y-0 transition-transform cursor-pointer"
-          >
-            <Camera className="w-3.5 h-3.5" />
-            <span>{isVideoCategory ? 'Upload Video/Photo' : 'Edit'}</span>
-          </button>
-          {isCustom && (
-            <button
-              type="button"
-              onClick={handleReset}
-              title="Reset to original"
-              className="bg-white/95 hover:bg-white text-rose-600 font-semibold text-xs p-2 rounded-full shadow-lg flex items-center transform translate-y-2 group-hover:translate-y-0 transition-transform cursor-pointer"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-            </button>
-          )}
         </div>
 
-        {/* Corner badge indicating human category or AI work */}
+        {/* Corner badge indicating category */}
         <div className="absolute top-3 left-3 z-10">
           <span className="text-[10px] font-bold uppercase tracking-wider text-[#383047] bg-white/90 backdrop-blur-md px-2.5 py-1 rounded-full shadow-2xs border border-white/60">
             {isAi
@@ -176,21 +136,8 @@ const WorkVisualCard: React.FC<{
           </span>
         </div>
 
-        {/* Direct Camera icon in top right corner to edit image/video anytime */}
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            fileInputRef.current?.click();
-          }}
-          title={isVideoCategory ? "Upload Video or Photo" : "Upload / Change Picture"}
-          className="absolute top-3 right-3 z-10 w-7 h-7 rounded-full bg-white/90 backdrop-blur-md hover:bg-white text-[#b75078] flex items-center justify-center shadow-xs border border-white/60 opacity-80 group-hover:opacity-100 transition-all cursor-pointer"
-        >
-          <Camera className="w-3.5 h-3.5" />
-        </button>
-
-        {/* Subtle play indicator for video entries (if not directly playing inline video) */}
-        {isVideoCategory && !isVideoFile && (
+        {/* Play indicator badge for video entries when rendered as poster */}
+        {isVideoCategory && mediaType !== 'video' && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none group-hover:opacity-0 transition-opacity">
             <div className="w-11 h-11 rounded-full bg-black/55 backdrop-blur-sm flex items-center justify-center text-white shadow-lg ring-2 ring-white/60">
               <div className="w-0 h-0 border-y-[6px] border-y-transparent border-l-[11px] border-l-white ml-0.5" />
@@ -207,14 +154,6 @@ export const Works: React.FC<WorksProps> = ({ onOpenProject }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCopyPiece, setSelectedCopyPiece] = useState<CopywritingItem>(COPYWRITING_PIECES[0]);
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
-
-  const showToast = (msg: string) => {
-    setToastMessage(msg);
-    setTimeout(() => {
-      setToastMessage((prev) => (prev === msg ? null : prev));
-    }, 3000);
-  };
 
   const pubmatProjects = PROJECTS.filter((p) => p.category === 'pubmats');
   const mockupProjects = PROJECTS.filter((p) => p.category === 'mockups');
@@ -224,12 +163,12 @@ export const Works: React.FC<WorksProps> = ({ onOpenProject }) => {
   const aiVideoProjects = PROJECTS.filter((p) => p.category === 'ai' && ['ai-6', 'ai-7', 'ai-8', 'ai-9', 'ai-10'].includes(p.id));
 
   const filterButtons = [
-    { id: 'filter-all', category: 'all' as const, label: `All Works (${PROJECTS.length})` },
-    { id: 'filter-pubmats', category: 'pubmats' as const, label: `Pubmats & Graphics (${pubmatProjects.length})` },
-    { id: 'filter-mockups', category: 'mockups' as const, label: `Merch Mockups (${mockupProjects.length})` },
-    { id: 'filter-dpblasts', category: 'dpblasts' as const, label: `DP Blasts (${dpblastProjects.length})` },
-    { id: 'filter-videos', category: 'videos' as const, label: `Videos (${videoProjects.length})` },
-    { id: 'filter-ai', category: 'ai' as const, label: `AI Concepts (${aiImageProjects.length + aiVideoProjects.length})` }
+    { id: 'filter-all', category: 'all' as const, label: 'All Works' },
+    { id: 'filter-pubmats', category: 'pubmats' as const, label: 'Pubmats & Graphics' },
+    { id: 'filter-mockups', category: 'mockups' as const, label: 'Merch Mockups' },
+    { id: 'filter-dpblasts', category: 'dpblasts' as const, label: 'DP Blasts' },
+    { id: 'filter-videos', category: 'videos' as const, label: 'Videos' },
+    { id: 'filter-ai', category: 'ai' as const, label: 'AI Concepts' }
   ];
 
   const handleCopyText = (text: string, id: string) => {
@@ -247,15 +186,25 @@ export const Works: React.FC<WorksProps> = ({ onOpenProject }) => {
       )
     : null;
 
+  const getCategoryListForProject = (p: ProjectItem) => {
+    if (searchedProjects) return searchedProjects;
+    if (p.category === 'pubmats') return pubmatProjects;
+    if (p.category === 'mockups') return mockupProjects;
+    if (p.category === 'dpblasts') return dpblastProjects;
+    if (p.category === 'videos') return videoProjects;
+    if (p.category === 'ai') {
+      const isAiVid = ['ai-6', 'ai-7', 'ai-8', 'ai-9', 'ai-10'].includes(p.id);
+      return isAiVid ? aiVideoProjects : aiImageProjects;
+    }
+    return PROJECTS;
+  };
+
+  const handleOpenProjectWithContext = (p: ProjectItem) => {
+    onOpenProject(p, getCategoryListForProject(p));
+  };
+
   return (
     <section id="works" data-template-id="works-section" className="canva-section py-20 sm:py-28 bg-[#fff9f3] relative">
-      {/* Toast Notification for Image Edits */}
-      {toastMessage && (
-        <div className="fixed bottom-6 right-6 z-50 bg-[#383047] text-white text-xs font-semibold px-4 py-2.5 rounded-full shadow-xl animate-fadeIn">
-          {toastMessage}
-        </div>
-      )}
-
       <div className="section-wrap max-w-[1160px] mx-auto px-5 sm:px-8">
         {/* Eyebrow, Title & Intro */}
         <div className="mb-8">
@@ -304,71 +253,78 @@ export const Works: React.FC<WorksProps> = ({ onOpenProject }) => {
           </div>
         </div>
 
-        {/* Filter buttons styled like Background tab buttons */}
-        <div
-          className="flex flex-wrap items-center gap-2 mb-10 p-1.5 bg-white/80 rounded-2xl border border-[#e7d6d9] w-fit"
-          role="group"
-          aria-label="Filter work samples"
-        >
+        {/* Filter Navigation */}
+        <div className="flex flex-wrap items-center gap-2 mb-10 pb-2 overflow-x-auto">
           {filterButtons.map((btn) => {
-            const isSelected = activeCategory === btn.category && !searchQuery;
+            const isActive = activeCategory === btn.category;
             return (
               <button
                 key={btn.id}
+                id={btn.id}
                 type="button"
-                data-category={btn.category}
-                data-template-id={btn.id}
                 onClick={() => {
                   setActiveCategory(btn.category);
                   setSearchQuery('');
                 }}
-                className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
-                  isSelected
-                    ? 'bg-[#b75078] text-white shadow-xs'
-                    : 'text-[#554b65] hover:text-[#383047] hover:bg-[#faebf2]'
+                className={`canva-button px-4 py-2 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                  isActive
+                    ? 'bg-[#b75078] text-white shadow-sm'
+                    : 'bg-white text-[#554b65] border border-[#e7d6d9] hover:border-[#b75078] hover:text-[#b75078]'
                 }`}
-                aria-pressed={isSelected ? 'true' : 'false'}
               >
                 {btn.label}
               </button>
             );
           })}
+
+          <button
+            type="button"
+            onClick={() => {
+              setActiveCategory('copywriting');
+              setSearchQuery('');
+            }}
+            className={`canva-button px-4 py-2 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+              activeCategory === 'copywriting'
+                ? 'bg-[#b75078] text-white shadow-sm'
+                : 'bg-white text-[#554b65] border border-[#e7d6d9] hover:border-[#b75078] hover:text-[#b75078]'
+            }`}
+          >
+            <BookOpen className="w-3.5 h-3.5" />
+            <span>Copywriting ({COPYWRITING_PIECES.length})</span>
+          </button>
         </div>
 
-        {/* Search Results */}
-        {searchedProjects && (
-          <div className="mb-8">
-            <p className="text-xs font-semibold text-[#6b607c] mb-4">
-              Found {searchedProjects.length} projects matching "{searchQuery}"
-            </p>
+        {/* If Search is Active */}
+        {searchedProjects ? (
+          <div>
+            <div className="mb-4 text-xs font-semibold text-[#6b607c]">
+              Found {searchedProjects.length} results matching "{searchQuery}"
+            </div>
             {searchedProjects.length === 0 ? (
-              <div className="text-center py-12 bg-white rounded-3xl border border-[#e7d6d9] p-8">
-                <p className="text-sm text-[#6b607c]">No projects found matching your search.</p>
+              <div className="text-center py-16 bg-white rounded-3xl border border-[#e7d6d9]">
+                <p className="text-sm text-[#6b607c]">No works found matching your search.</p>
                 <button
                   type="button"
                   onClick={() => setSearchQuery('')}
-                  className="mt-3 text-xs font-bold text-[#b75078] underline"
+                  className="mt-3 text-xs font-bold text-[#b75078] hover:underline"
                 >
                   Clear search
                 </button>
               </div>
             ) : (
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {searchedProjects.map((proj) => (
+                {searchedProjects.map((p) => (
                   <WorkVisualCard
-                    key={proj.id}
-                    project={proj}
-                    onOpenProject={onOpenProject}
-                    onToast={showToast}
+                    key={p.id}
+                    project={p}
+                    onOpenProject={handleOpenProjectWithContext}
                   />
                 ))}
               </div>
             )}
           </div>
-        )}
-
-        {/* Regular groups matching template specifications */}
-        {!searchQuery && (
+        ) : (
+          /* Structured Content Showcase by Category */
           <div className="space-y-12">
             {/* PUBMATS GROUP */}
             <div
@@ -388,8 +344,7 @@ export const Works: React.FC<WorksProps> = ({ onOpenProject }) => {
                   <WorkVisualCard
                     key={p.id}
                     project={p}
-                    onOpenProject={onOpenProject}
-                    onToast={showToast}
+                    onOpenProject={handleOpenProjectWithContext}
                   />
                 ))}
               </div>
@@ -413,8 +368,7 @@ export const Works: React.FC<WorksProps> = ({ onOpenProject }) => {
                   <WorkVisualCard
                     key={p.id}
                     project={p}
-                    onOpenProject={onOpenProject}
-                    onToast={showToast}
+                    onOpenProject={handleOpenProjectWithContext}
                   />
                 ))}
               </div>
@@ -431,15 +385,14 @@ export const Works: React.FC<WorksProps> = ({ onOpenProject }) => {
                 <span className="text-xs font-bold uppercase tracking-wider text-[#2980b9] bg-[#ebf5fb] px-3.5 py-1.5 rounded-full border border-[#d4e6f1]">
                   DP Blasts & Facebook Campaign Frames
                 </span>
-                <span className="text-xs text-[#6b607c]">Student Avatar Frames ({dpblastProjects.length} frames)</span>
+                <span className="text-xs text-[#6b607c]">Student Avatar Frames</span>
               </div>
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {dpblastProjects.map((p) => (
                   <WorkVisualCard
                     key={p.id}
                     project={p}
-                    onOpenProject={onOpenProject}
-                    onToast={showToast}
+                    onOpenProject={handleOpenProjectWithContext}
                   />
                 ))}
               </div>
@@ -456,15 +409,14 @@ export const Works: React.FC<WorksProps> = ({ onOpenProject }) => {
                 <span className="text-xs font-bold uppercase tracking-wider text-[#e67e22] bg-[#fef5e7] px-3.5 py-1.5 rounded-full border border-[#fbdca7]">
                   Campus & Event Videos
                 </span>
-                <span className="text-xs text-[#6b607c]">Vlogs, Reels & Motion Graphics ({videoProjects.length} frames)</span>
+                <span className="text-xs text-[#6b607c]">Vlogs, Reels & Motion Graphics</span>
               </div>
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {videoProjects.map((p) => (
                   <WorkVisualCard
                     key={p.id}
                     project={p}
-                    onOpenProject={onOpenProject}
-                    onToast={showToast}
+                    onOpenProject={handleOpenProjectWithContext}
                   />
                 ))}
               </div>
@@ -483,7 +435,7 @@ export const Works: React.FC<WorksProps> = ({ onOpenProject }) => {
                   <div className="flex items-center gap-2">
                     <Sparkles className="w-4 h-4 text-[#8e44ad]" />
                     <span className="text-xs font-bold uppercase tracking-wider text-[#8e44ad] bg-[#f4ecfc] px-3.5 py-1.5 rounded-full border border-[#e2cbf7]">
-                      AI Generated Images (5 Works)
+                      AI Generated Images
                     </span>
                   </div>
                   <span className="text-xs text-[#6b607c]">Generative Commercial Concepts</span>
@@ -493,8 +445,7 @@ export const Works: React.FC<WorksProps> = ({ onOpenProject }) => {
                     <WorkVisualCard
                       key={p.id}
                       project={p}
-                      onOpenProject={onOpenProject}
-                      onToast={showToast}
+                      onOpenProject={handleOpenProjectWithContext}
                     />
                   ))}
                 </div>
@@ -516,8 +467,7 @@ export const Works: React.FC<WorksProps> = ({ onOpenProject }) => {
                     <WorkVisualCard
                       key={p.id}
                       project={p}
-                      onOpenProject={onOpenProject}
-                      onToast={showToast}
+                      onOpenProject={handleOpenProjectWithContext}
                     />
                   ))}
                 </div>
@@ -531,8 +481,7 @@ export const Works: React.FC<WorksProps> = ({ onOpenProject }) => {
               }`}
               data-group="copywriting"
             >
-              {/* Full Interactive Clothesline Copywriting Reader with all 10 works! */}
-              <div className="rounded-[32px] bg-white border border-[#e7d6d9] p-6 sm:p-8 shadow-sm">
+              <div className="rounded-[32px] bg-white border border-[#e7d6d9] p-6 sm:p-8 shadow-xs">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pb-5 border-b border-[#e7d6d9]">
                   <div className="flex items-center gap-2.5">
                     <div className="w-9 h-9 rounded-full bg-[#f7c9d8] text-[#b75078] flex items-center justify-center font-bold text-sm">

@@ -140,11 +140,6 @@ export const About: React.FC = () => {
                     <span className="text-xs font-bold text-[#b75078] bg-[#faebf2] px-3 py-1 rounded-full">
                       {org.period}
                     </span>
-                    {org.committeeOrTeam && (
-                      <span className="text-[11px] font-semibold text-[#8e44ad] bg-[#f4ecfc] px-2.5 py-0.5 rounded-full">
-                        {org.committeeOrTeam}
-                      </span>
-                    )}
                   </div>
 
                   <h3 className="font-display font-bold text-base sm:text-lg text-[#383047] mt-2">
