@@ -36,15 +36,27 @@ export const Footer: React.FC = () => {
           </p>
         </div>
 
-        {/* Back to top button */}
-        <button
-          type="button"
-          onClick={scrollToTop}
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#383047] hover:text-[#b75078] bg-white px-3.5 py-1.5 rounded-full border border-[#e7d6d9] hover:border-[#b75078] transition-all shadow-2xs"
-        >
-          <span>Back to Top</span>
-          <ArrowUp className="w-3 h-3" />
-        </button>
+        {/* Action buttons */}
+        <div className="flex items-center gap-2 sm:gap-3">
+          <button
+            type="button"
+            onClick={() => window.dispatchEvent(new CustomEvent('open_media_deploy_manager'))}
+            className="text-[11px] font-semibold text-[#8e44ad] hover:text-[#b75078] bg-[#f4ecfc] px-3 py-1.5 rounded-full border border-[#e2cbf7] hover:border-[#b75078] transition-all cursor-pointer shadow-2xs"
+            title="Sync or upload pictures and videos directly to repository files"
+          >
+            <span>📁 Deploy Media Manager</span>
+          </button>
+
+          {/* Back to top button */}
+          <button
+            type="button"
+            onClick={scrollToTop}
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#383047] hover:text-[#b75078] bg-white px-3.5 py-1.5 rounded-full border border-[#e7d6d9] hover:border-[#b75078] transition-all shadow-2xs cursor-pointer"
+          >
+            <span>Back to Top</span>
+            <ArrowUp className="w-3 h-3" />
+          </button>
+        </div>
       </div>
     </footer>
   );

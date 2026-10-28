@@ -19,16 +19,22 @@ const WorkVisualCard: React.FC<{
   project: ProjectItem;
   onOpenProject: (project: ProjectItem) => void;
 }> = ({ project, onOpenProject }) => {
-  const [currentImg, setCurrentImg] = useState<string>(() => {
-    return getSyncMediaItem(
-      `agnes_work_img_${project.id}`,
-      normalizeAssetUrl(project.videoUrl || project.imageUrl)
-    );
-  });
+  const isVideoCategory =
+    project.category === 'videos' ||
+    ['ai-6', 'ai-7', 'ai-8', 'ai-9', 'ai-10'].includes(project.id);
 
   const [mediaType, setMediaType] = useState<'video' | 'image'>(() => {
     const sync = getSyncMediaItem(`agnes_work_img_${project.id}`);
-    return getMediaType(`agnes_work_img_${project.id}`, sync || project.videoUrl || '');
+    if (sync) return getMediaType(`agnes_work_img_${project.id}`, sync);
+    if (project.videoUrl) return 'video';
+    return isVideoCategory ? 'video' : 'image';
+  });
+
+  const [currentImg, setCurrentImg] = useState<string>(() => {
+    const sync = getSyncMediaItem(`agnes_work_img_${project.id}`);
+    if (sync) return sync;
+    if (project.videoUrl) return normalizeAssetUrl(project.videoUrl);
+    return normalizeAssetUrl(project.imageUrl) || '/assets/images/agnes_photo.jpg';
   });
 
   useEffect(() => {
@@ -65,9 +71,6 @@ const WorkVisualCard: React.FC<{
     };
   }, [project.id, project.imageUrl, project.videoUrl]);
 
-  const isVideoCategory =
-    project.category === 'videos' ||
-    ['ai-6', 'ai-7', 'ai-8', 'ai-9', 'ai-10'].includes(project.id);
   const isAi = project.category === 'ai';
 
   return (
@@ -86,6 +89,7 @@ const WorkVisualCard: React.FC<{
         {mediaType === 'video' ? (
           <video
             src={currentImg}
+            poster={normalizeAssetUrl(project.imageUrl)}
             muted
             loop
             playsInline
@@ -102,7 +106,7 @@ const WorkVisualCard: React.FC<{
             src={currentImg}
             alt={project.title}
             onError={(e) => {
-              const fallback = normalizeAssetUrl(project.imageUrl || project.videoUrl);
+              const fallback = normalizeAssetUrl(project.imageUrl) || '/assets/images/agnes_photo.jpg';
               if (fallback && (e.target as HTMLImageElement).src !== fallback) {
                 (e.target as HTMLImageElement).src = fallback;
               }

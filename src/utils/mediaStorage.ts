@@ -15,16 +15,95 @@ function getDB(): Promise<IDBDatabase> {
       reject(new Error('IndexedDB not supported'));
       return;
     }
-    const request = window.indexedDB.open(DB_NAME, DB_VERSION);
-    request.onupgradeneeded = () => {
-      const db = request.result;
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
-        db.createObjectStore(STORE_NAME);
-      }
-    };
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
+    try {
+      const request = window.indexedDB.open(DB_NAME, DB_VERSION);
+      request.onupgradeneeded = () => {
+        try {
+          const db = request.result;
+          if (!db.objectStoreNames.contains(STORE_NAME)) {
+            db.createObjectStore(STORE_NAME);
+          }
+        } catch {}
+      };
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    } catch (e) {
+      reject(e);
+    }
   });
+}
+
+/**
+ * Fetch all entries from IndexedDB safely without using cursors to prevent TransactionInactiveError
+ */
+async function getAllEntriesFromDB(): Promise<Array<{ key: string; value: any }>> {
+  if (typeof window === 'undefined' || !window.indexedDB) return [];
+  try {
+    const db = await getDB();
+    return new Promise((resolve) => {
+      try {
+        const tx = db.transaction(STORE_NAME, 'readonly');
+        const store = tx.objectStore(STORE_NAME);
+
+        // Modern browsers: getAllKeys and getAll execute atomically without IDBCursor
+        if (typeof store.getAllKeys === 'function' && typeof store.getAll === 'function') {
+          const keysReq = store.getAllKeys();
+          const valsReq = store.getAll();
+
+          let keys: IDBValidKey[] | null = null;
+          let vals: any[] | null = null;
+
+          const finish = () => {
+            if (keys !== null && vals !== null) {
+              const entries: Array<{ key: string; value: any }> = [];
+              for (let i = 0; i < keys.length; i++) {
+                entries.push({ key: String(keys[i]), value: vals[i] });
+              }
+              resolve(entries);
+            }
+          };
+
+          keysReq.onsuccess = () => {
+            keys = keysReq.result || [];
+            finish();
+          };
+          keysReq.onerror = () => resolve([]);
+
+          valsReq.onsuccess = () => {
+            vals = valsReq.result || [];
+            finish();
+          };
+          valsReq.onerror = () => resolve([]);
+
+          tx.onerror = () => resolve([]);
+          tx.onabort = () => resolve([]);
+          return;
+        }
+
+        // Fallback for legacy environments (synchronously push to array before returning)
+        const entries: Array<{ key: string; value: any }> = [];
+        const req = store.openCursor();
+        req.onsuccess = () => {
+          try {
+            const cursor = req.result;
+            if (cursor) {
+              entries.push({ key: String(cursor.key), value: cursor.value });
+              cursor.continue();
+            } else {
+              resolve(entries);
+            }
+          } catch {
+            resolve(entries);
+          }
+        };
+        req.onerror = () => resolve([]);
+      } catch {
+        resolve([]);
+      }
+    });
+  } catch {
+    return [];
+  }
 }
 
 /**
@@ -140,12 +219,18 @@ export async function saveMediaItem(
 
   try {
     const db = await getDB();
-    await new Promise<void>((resolve, reject) => {
-      const tx = db.transaction(STORE_NAME, 'readwrite');
-      const store = tx.objectStore(STORE_NAME);
-      const req = store.put(value, key);
-      req.onsuccess = () => resolve();
-      req.onerror = () => reject(req.error);
+    await new Promise<void>((resolve) => {
+      try {
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        const store = tx.objectStore(STORE_NAME);
+        const req = store.put(value, key);
+        req.onsuccess = () => resolve();
+        req.onerror = () => resolve();
+        tx.onerror = () => resolve();
+        tx.onabort = () => resolve();
+      } catch {
+        resolve();
+      }
     });
 
     if (value instanceof Blob && typeof window !== 'undefined') {
@@ -157,7 +242,7 @@ export async function saveMediaItem(
     console.warn(`Failed to save media in IndexedDB:`, err);
   }
 
-  // Also sync directly to repository disk on server
+  // Also sync directly to repository disk on server (non-blocking)
   syncMediaToServer(key, value, isVid).catch(() => {});
 }
 
@@ -182,6 +267,14 @@ export async function syncMediaToServer(
   isVideo = false
 ): Promise<string | null> {
   if (typeof window === 'undefined') return null;
+
+  // On static hosts (like Cloudflare Pages or Workers), there is no Node.js backend
+  const isStaticHost =
+    window.location.hostname.includes('workers.dev') ||
+    window.location.hostname.includes('pages.dev') ||
+    window.location.hostname.includes('cloudflare');
+  if (isStaticHost) return null;
+
   try {
     let base64Data = '';
     if (value instanceof Blob) {
@@ -206,8 +299,10 @@ export async function syncMediaToServer(
       body: JSON.stringify({ key, base64Data, isVideo })
     });
     if (!res.ok) return null;
+    const contentType = res.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) return null;
     const json = await res.json();
-    return json.url || null;
+    return json?.url || null;
   } catch {
     return null;
   }
@@ -238,34 +333,44 @@ export async function getMediaItem(key: string): Promise<string | null> {
   try {
     const db = await getDB();
     return new Promise<string | null>((resolve) => {
-      const tx = db.transaction(STORE_NAME, 'readonly');
-      const store = tx.objectStore(STORE_NAME);
-      const req = store.get(key);
-      req.onsuccess = () => {
-        const result = req.result;
-        if (!result) {
-          resolve(null);
-          return;
-        }
-        if (typeof result === 'string') {
-          mediaMemoryCache[key] = result;
-          resolve(result);
-        } else if (result instanceof Blob) {
-          if (result.type.startsWith('video/')) {
-            mediaTypeCache[key] = 'video';
-            try { localStorage.setItem(key + '_type', 'video'); } catch {}
-          } else {
-            mediaTypeCache[key] = 'image';
-            try { localStorage.setItem(key + '_type', 'image'); } catch {}
+      try {
+        const tx = db.transaction(STORE_NAME, 'readonly');
+        const store = tx.objectStore(STORE_NAME);
+        const req = store.get(key);
+        req.onsuccess = () => {
+          try {
+            const result = req.result;
+            if (!result) {
+              resolve(null);
+              return;
+            }
+            if (typeof result === 'string') {
+              mediaMemoryCache[key] = result;
+              resolve(result);
+            } else if (result instanceof Blob) {
+              if (result.type.startsWith('video/')) {
+                mediaTypeCache[key] = 'video';
+                try { localStorage.setItem(key + '_type', 'video'); } catch {}
+              } else {
+                mediaTypeCache[key] = 'image';
+                try { localStorage.setItem(key + '_type', 'image'); } catch {}
+              }
+              const url = URL.createObjectURL(result);
+              mediaMemoryCache[key] = url;
+              resolve(url);
+            } else {
+              resolve(null);
+            }
+          } catch {
+            resolve(null);
           }
-          const url = URL.createObjectURL(result);
-          mediaMemoryCache[key] = url;
-          resolve(url);
-        } else {
-          resolve(null);
-        }
-      };
-      req.onerror = () => resolve(null);
+        };
+        req.onerror = () => resolve(null);
+        tx.onerror = () => resolve(null);
+        tx.onabort = () => resolve(null);
+      } catch {
+        resolve(null);
+      }
     });
   } catch {
     return null;
@@ -287,12 +392,18 @@ export async function deleteMediaItem(key: string): Promise<void> {
 
   try {
     const db = await getDB();
-    await new Promise<void>((resolve, reject) => {
-      const tx = db.transaction(STORE_NAME, 'readwrite');
-      const store = tx.objectStore(STORE_NAME);
-      const req = store.delete(key);
-      req.onsuccess = () => resolve();
-      req.onerror = () => reject(req.error);
+    await new Promise<void>((resolve) => {
+      try {
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        const store = tx.objectStore(STORE_NAME);
+        const req = store.delete(key);
+        req.onsuccess = () => resolve();
+        req.onerror = () => resolve();
+        tx.onerror = () => resolve();
+        tx.onabort = () => resolve();
+      } catch {
+        resolve();
+      }
     });
   } catch (err) {
     console.warn('Failed to delete media from IndexedDB:', err);
@@ -304,49 +415,51 @@ export async function deleteMediaItem(key: string): Promise<void> {
  */
 export async function autoSyncAllMediaToServer(): Promise<number> {
   if (typeof window === 'undefined') return 0;
-  const itemsToSync: Array<{ key: string; base64Data: string; isVideo: boolean }> = [];
+
+  // On static hosts (like Cloudflare Pages or Workers), there is no Node.js backend
+  const isStaticHost =
+    window.location.hostname.includes('workers.dev') ||
+    window.location.hostname.includes('pages.dev') ||
+    window.location.hostname.includes('cloudflare');
+  if (isStaticHost) return 0;
 
   try {
-    const db = await getDB();
-    await new Promise<void>((resolve) => {
-      const tx = db.transaction(STORE_NAME, 'readonly');
-      const store = tx.objectStore(STORE_NAME);
-      const req = store.openCursor();
-      req.onsuccess = async () => {
-        const cursor = req.result;
-        if (cursor) {
-          const key = String(cursor.key);
-          const val = cursor.value;
-          try {
-            if (val instanceof Blob) {
-              const b64 = await blobToBase64(val);
-              const isVid = val.type.startsWith('video/') || key.includes('video');
-              itemsToSync.push({ key, base64Data: b64, isVideo: isVid });
-            } else if (typeof val === 'string' && val.startsWith('data:')) {
-              const isVid = val.startsWith('data:video/') || key.includes('video');
-              itemsToSync.push({ key, base64Data: val, isVideo: isVid });
-            }
-          } catch {}
-          cursor.continue();
-        } else {
-          resolve();
-        }
-      };
-      req.onerror = () => resolve();
-    });
-  } catch {}
+    const rawEntries = await getAllEntriesFromDB();
+    if (rawEntries.length === 0) return 0;
 
-  if (itemsToSync.length > 0) {
-    try {
-      const res = await fetch('/api/sync-all-media', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ items: itemsToSync })
-      });
-      const data = await res.json();
-      console.log(`Auto-synced ${data.count || 0} media items to project disk!`);
-      return data.count || 0;
-    } catch {}
+    const itemsToSync: Array<{ key: string; base64Data: string; isVideo: boolean }> = [];
+
+    for (const { key, value: val } of rawEntries) {
+      try {
+        if (val instanceof Blob) {
+          const b64 = await blobToBase64(val);
+          const isVid = val.type.startsWith('video/') || key.includes('video');
+          itemsToSync.push({ key, base64Data: b64, isVideo: isVid });
+        } else if (typeof val === 'string' && val.startsWith('data:')) {
+          const isVid = val.startsWith('data:video/') || key.includes('video');
+          itemsToSync.push({ key, base64Data: val, isVideo: isVid });
+        }
+      } catch {}
+    }
+
+    if (itemsToSync.length > 0) {
+      try {
+        const res = await fetch('/api/sync-all-media', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ items: itemsToSync })
+        });
+        if (!res.ok) return 0;
+        const contentType = res.headers.get('content-type') || '';
+        if (!contentType.includes('application/json')) return 0;
+        const data = await res.json();
+        return data?.count || 0;
+      } catch {
+        return 0;
+      }
+    }
+  } catch {
+    return 0;
   }
   return 0;
 }
@@ -368,43 +481,37 @@ export async function hydrateAllMedia(): Promise<void> {
     }
   } catch {}
 
-  // 2. Scan IndexedDB
+  // 2. Scan IndexedDB safely using atomic getAll/getAllKeys
   try {
-    const db = await getDB();
-    await new Promise<void>((resolve) => {
-      const tx = db.transaction(STORE_NAME, 'readonly');
-      const store = tx.objectStore(STORE_NAME);
-      const req = store.openCursor();
-      req.onsuccess = () => {
-        const cursor = req.result;
-        if (cursor) {
-          const key = String(cursor.key);
-          const val = cursor.value;
-          if (typeof val === 'string') {
-            mediaMemoryCache[key] = val;
-          } else if (val instanceof Blob) {
-            if (val.type.startsWith('video/')) {
-              mediaTypeCache[key] = 'video';
-              try { localStorage.setItem(key + '_type', 'video'); } catch {}
-            } else {
-              mediaTypeCache[key] = 'image';
-              try { localStorage.setItem(key + '_type', 'image'); } catch {}
-            }
-            mediaMemoryCache[key] = URL.createObjectURL(val);
-          }
-          cursor.continue();
-        } else {
-          resolve();
-        }
-      };
-      req.onerror = () => resolve();
-    });
+    const entries = await getAllEntriesFromDB();
+    for (const { key, value } of entries) {
+      if (typeof value === 'string') {
+        mediaMemoryCache[key] = value;
+      } else if (value instanceof Blob) {
+        const isVid = value.type.startsWith('video/');
+        mediaTypeCache[key] = isVid ? 'video' : 'image';
+        try {
+          localStorage.setItem(key + '_type', isVid ? 'video' : 'image');
+        } catch {}
+        try {
+          mediaMemoryCache[key] = URL.createObjectURL(value);
+        } catch {}
+      }
+    }
   } catch {}
 
   notifyMediaChanged('__all__', '');
 
-  // Run background auto-sync to ensure everything is on repository disk for Cloudflare
-  autoSyncAllMediaToServer().catch(() => {});
+  // Only auto-sync if we are on a dev/full-stack host (not static Cloudflare host)
+  const isStaticHost =
+    typeof window !== 'undefined' &&
+    (window.location.hostname.includes('workers.dev') ||
+      window.location.hostname.includes('pages.dev') ||
+      window.location.hostname.includes('cloudflare'));
+
+  if (!isStaticHost) {
+    autoSyncAllMediaToServer().catch(() => {});
+  }
 }
 
 // Auto-run hydration on client

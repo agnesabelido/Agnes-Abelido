@@ -56,19 +56,14 @@ export const MediaDeployManager: React.FC = () => {
     }
   };
 
+  React.useEffect(() => {
+    const handleOpen = () => setIsOpen(true);
+    window.addEventListener('open_media_deploy_manager', handleOpen);
+    return () => window.removeEventListener('open_media_deploy_manager', handleOpen);
+  }, []);
+
   return (
     <>
-      {/* Floating Manager Button */}
-      <button
-        type="button"
-        onClick={() => setIsOpen(true)}
-        className="fixed bottom-5 right-5 z-40 inline-flex items-center gap-2 bg-[#383047] hover:bg-[#b75078] text-white text-xs font-bold px-4 py-2.5 rounded-full shadow-2xl border border-white/20 transition-all hover:scale-105 cursor-pointer backdrop-blur-md"
-        title="Sync or upload pictures and videos directly to repository files for Cloudflare deployment"
-      >
-        <CloudUpload className="w-4 h-4 text-emerald-400" />
-        <span>Deploy Media to Cloudflare</span>
-      </button>
-
       {/* Modal */}
       {isOpen && (
         <div

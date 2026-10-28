@@ -314,29 +314,22 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
                 onClick={() => onSelectProject(prevProject)}
                 className="flex items-center gap-3 p-2.5 sm:p-3 rounded-2xl bg-white border border-[#e7d6d9] hover:border-[#b75078] hover:bg-[#faebf2]/40 transition-all text-left cursor-pointer group shadow-2xs"
               >
-                <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl overflow-hidden shrink-0 bg-black flex items-center justify-center relative">
-                  {getMediaType(`agnes_work_img_${prevProject.id}`, getProjectEffectiveMedia(prevProject)) === 'video' ? (
-                    <video
-                      src={getProjectEffectiveMedia(prevProject)}
-                      muted
-                      preload="metadata"
-                      className="w-full h-full object-cover"
-                      onLoadedMetadata={(e) => {
-                        try {
-                          (e.target as HTMLVideoElement).currentTime = 0.1;
-                        } catch {}
-                      }}
-                    />
-                  ) : (
-                    <img
-                      src={getProjectThumbnail(prevProject)}
-                      alt={prevProject.title}
-                      onError={(e) => {
-                        const fb = normalizeAssetUrl(prevProject.imageUrl || prevProject.videoUrl);
-                        if (fb) (e.target as HTMLImageElement).src = fb;
-                      }}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                    />
+                <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl overflow-hidden shrink-0 bg-slate-900 flex items-center justify-center relative">
+                  <img
+                    src={getProjectThumbnail(prevProject) || normalizeAssetUrl(prevProject.imageUrl) || '/assets/images/agnes_photo.jpg'}
+                    alt={prevProject.title}
+                    onError={(e) => {
+                      const fb = normalizeAssetUrl(prevProject.imageUrl) || '/assets/images/agnes_photo.jpg';
+                      if ((e.target as HTMLImageElement).src !== fb) {
+                        (e.target as HTMLImageElement).src = fb;
+                      }
+                    }}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                  />
+                  {(prevProject.category === 'videos' || prevProject.videoUrl) && (
+                    <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+                      <div className="w-0 h-0 border-y-[4px] border-y-transparent border-l-[7px] border-l-white ml-0.5" />
+                    </div>
                   )}
                 </div>
                 <div className="min-w-0 flex-1">
@@ -372,29 +365,22 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
                     {getCategoryLabel(nextProject)}
                   </div>
                 </div>
-                <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl overflow-hidden shrink-0 bg-black flex items-center justify-center relative">
-                  {getMediaType(`agnes_work_img_${nextProject.id}`, getProjectEffectiveMedia(nextProject)) === 'video' ? (
-                    <video
-                      src={getProjectEffectiveMedia(nextProject)}
-                      muted
-                      preload="metadata"
-                      className="w-full h-full object-cover"
-                      onLoadedMetadata={(e) => {
-                        try {
-                          (e.target as HTMLVideoElement).currentTime = 0.1;
-                        } catch {}
-                      }}
-                    />
-                  ) : (
-                    <img
-                      src={getProjectThumbnail(nextProject)}
-                      alt={nextProject.title}
-                      onError={(e) => {
-                        const fb = normalizeAssetUrl(nextProject.imageUrl || nextProject.videoUrl);
-                        if (fb) (e.target as HTMLImageElement).src = fb;
-                      }}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                    />
+                <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl overflow-hidden shrink-0 bg-slate-900 flex items-center justify-center relative">
+                  <img
+                    src={getProjectThumbnail(nextProject) || normalizeAssetUrl(nextProject.imageUrl) || '/assets/images/agnes_photo.jpg'}
+                    alt={nextProject.title}
+                    onError={(e) => {
+                      const fb = normalizeAssetUrl(nextProject.imageUrl) || '/assets/images/agnes_photo.jpg';
+                      if ((e.target as HTMLImageElement).src !== fb) {
+                        (e.target as HTMLImageElement).src = fb;
+                      }
+                    }}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                  />
+                  {(nextProject.category === 'videos' || nextProject.videoUrl) && (
+                    <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+                      <div className="w-0 h-0 border-y-[4px] border-y-transparent border-l-[7px] border-l-white ml-0.5" />
+                    </div>
                   )}
                 </div>
               </button>
@@ -405,9 +391,8 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
           <div className="flex items-center gap-2 overflow-x-auto py-2 px-1 scrollbar-thin">
             {allProjects.map((p, pIdx) => {
               const isCurrent = p.id === project.id;
-              const thumbUrl = getProjectThumbnail(p);
-              const pEffective = getProjectEffectiveMedia(p);
-              const isPVideo = getMediaType(`agnes_work_img_${p.id}`, pEffective) === 'video';
+              const thumbImg = getProjectThumbnail(p) || normalizeAssetUrl(p.imageUrl) || '/assets/images/agnes_photo.jpg';
+              const isVideoItem = p.category === 'videos' || Boolean(p.videoUrl);
 
               return (
                 <button
@@ -415,38 +400,28 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
                   type="button"
                   onClick={() => onSelectProject(p)}
                   title={`Work ${pIdx + 1}: ${p.title} (${getCategoryLabel(p)})`}
-                  className={`relative shrink-0 w-11 h-11 sm:w-12 sm:h-12 rounded-xl overflow-hidden border-2 transition-all cursor-pointer bg-black ${
+                  className={`relative shrink-0 w-11 h-11 sm:w-12 sm:h-12 rounded-xl overflow-hidden border-2 transition-all cursor-pointer bg-slate-900 ${
                     isCurrent
                       ? 'border-[#b75078] shadow-md scale-105 ring-2 ring-[#b75078]/40'
                       : 'border-transparent opacity-60 hover:opacity-100 hover:border-[#e7d6d9]'
                   }`}
                 >
-                  {isPVideo ? (
-                    <video
-                      src={pEffective}
-                      muted
-                      preload="metadata"
-                      className="w-full h-full object-cover"
-                      onLoadedMetadata={(e) => {
-                        try {
-                          (e.target as HTMLVideoElement).currentTime = 0.1;
-                        } catch {}
-                      }}
-                    />
-                  ) : (
-                    <img
-                      src={thumbUrl}
-                      alt={p.title}
-                      onError={(e) => {
-                        const fb = normalizeAssetUrl(p.imageUrl || p.videoUrl);
-                        if (fb) (e.target as HTMLImageElement).src = fb;
-                      }}
-                      className="w-full h-full object-cover"
-                    />
+                  <img
+                    src={thumbImg}
+                    alt={p.title}
+                    onError={(e) => {
+                      const fb = normalizeAssetUrl(p.imageUrl) || '/assets/images/agnes_photo.jpg';
+                      if ((e.target as HTMLImageElement).src !== fb) {
+                        (e.target as HTMLImageElement).src = fb;
+                      }
+                    }}
+                    className="w-full h-full object-cover"
+                  />
+                  {isVideoItem && (
+                    <div className="absolute inset-0 bg-black/25 flex items-center justify-center pointer-events-none">
+                      <div className="w-0 h-0 border-y-[3px] border-y-transparent border-l-[5px] border-l-white ml-0.5" />
+                    </div>
                   )}
-                  <span className="absolute bottom-0 right-0 bg-black/70 text-white text-[9px] px-1 font-bold rounded-tl-md">
-                    {pIdx + 1}
-                  </span>
                 </button>
               );
             })}
