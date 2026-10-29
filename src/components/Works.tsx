@@ -22,33 +22,39 @@ const WorkVisualCard: React.FC<{
   const isVideoCategory =
     project.category === 'videos' ||
     ['ai-6', 'ai-7', 'ai-8', 'ai-9', 'ai-10'].includes(project.id);
-
-  const [mediaType, setMediaType] = useState<'video' | 'image'>(() => {
-    const sync = getSyncMediaItem(`agnes_work_img_${project.id}`);
-    if (sync) return getMediaType(`agnes_work_img_${project.id}`, sync);
-    if (project.videoUrl) return 'video';
-    return isVideoCategory ? 'video' : 'image';
-  });
+  const isAi = project.category === 'ai';
 
   const [currentImg, setCurrentImg] = useState<string>(() => {
     const sync = getSyncMediaItem(`agnes_work_img_${project.id}`);
-    if (sync) return sync;
-    if (project.videoUrl) return normalizeAssetUrl(project.videoUrl);
+    if (sync && getMediaType(`agnes_work_img_${project.id}`, sync) !== 'video') return sync;
     return normalizeAssetUrl(project.imageUrl) || '/assets/images/agnes_photo.jpg';
+  });
+
+  const [videoSrc, setVideoSrc] = useState<string>(() => {
+    if (project.videoUrl) return normalizeAssetUrl(project.videoUrl);
+    const sync = getSyncMediaItem(`agnes_work_img_${project.id}`);
+    if (sync && getMediaType(`agnes_work_img_${project.id}`, sync) === 'video') return sync;
+    return '';
   });
 
   useEffect(() => {
     let isMounted = true;
     const initial = getSyncMediaItem(`agnes_work_img_${project.id}`);
     if (initial) {
-      setCurrentImg(initial);
-      setMediaType(getMediaType(`agnes_work_img_${project.id}`, initial));
+      if (getMediaType(`agnes_work_img_${project.id}`, initial) === 'video') {
+        setVideoSrc(initial);
+      } else {
+        setCurrentImg(initial);
+      }
     }
 
     getMediaItem(`agnes_work_img_${project.id}`).then((stored) => {
       if (isMounted && stored) {
-        setCurrentImg(stored);
-        setMediaType(getMediaType(`agnes_work_img_${project.id}`, stored));
+        if (getMediaType(`agnes_work_img_${project.id}`, stored) === 'video') {
+          setVideoSrc(stored);
+        } else {
+          setCurrentImg(stored);
+        }
       }
     });
 
@@ -58,8 +64,11 @@ const WorkVisualCard: React.FC<{
         if (customEvent.detail.key === `agnes_work_img_${project.id}` || customEvent.detail.key === '__all__') {
           const fresh = getSyncMediaItem(`agnes_work_img_${project.id}`);
           if (fresh) {
-            setCurrentImg(fresh);
-            setMediaType(getMediaType(`agnes_work_img_${project.id}`, fresh));
+            if (getMediaType(`agnes_work_img_${project.id}`, fresh) === 'video') {
+              setVideoSrc(fresh);
+            } else {
+              setCurrentImg(fresh);
+            }
           }
         }
       }
@@ -71,8 +80,6 @@ const WorkVisualCard: React.FC<{
     };
   }, [project.id, project.imageUrl, project.videoUrl]);
 
-  const isAi = project.category === 'ai';
-
   return (
     <article
       data-template-id={project.templateCardId || `card-${project.id}`}
@@ -80,40 +87,42 @@ const WorkVisualCard: React.FC<{
         onOpenProject({
           ...project,
           imageUrl: currentImg,
-          videoUrl: mediaType === 'video' ? currentImg : undefined
+          videoUrl: videoSrc || project.videoUrl
         })
       }
       className="soft-card rounded-[26px] overflow-hidden group cursor-pointer border border-[#563e4b]/12 hover:border-[#b75078] transition-all duration-300 bg-white shadow-xs hover:shadow-xl hover:-translate-y-1 relative"
     >
-      <div className="relative overflow-hidden aspect-[4/3] bg-black/5">
-        {mediaType === 'video' ? (
+      <div className="relative overflow-hidden aspect-[4/3] bg-[#f4ecfc]/40">
+        {/* Base Image Cover - Always reliably loaded and visible */}
+        <img
+          src={currentImg}
+          alt={project.title}
+          onError={(e) => {
+            const fallback = normalizeAssetUrl(project.imageUrl) || '/assets/images/agnes_photo.jpg';
+            if (fallback && (e.target as HTMLImageElement).src !== fallback) {
+              (e.target as HTMLImageElement).src = fallback;
+            }
+          }}
+          data-template-id={project.templateImageId || `img-${project.id}`}
+          className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
+          loading="lazy"
+        />
+
+        {/* Video Hover Layer (Desktop) */}
+        {isVideoCategory && videoSrc && (
           <video
-            src={currentImg}
-            poster={normalizeAssetUrl(project.imageUrl)}
+            src={videoSrc}
             muted
             loop
             playsInline
-            preload="metadata"
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 bg-black"
-            onLoadedMetadata={(e) => {
-              try {
-                (e.target as HTMLVideoElement).currentTime = 0.1;
-              } catch {}
+            preload="none"
+            className="absolute inset-0 w-full h-full object-cover opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
+            onMouseEnter={(e) => (e.target as HTMLVideoElement).play().catch(() => {})}
+            onMouseLeave={(e) => {
+              const v = e.target as HTMLVideoElement;
+              v.pause();
+              v.currentTime = 0;
             }}
-          />
-        ) : (
-          <img
-            src={currentImg}
-            alt={project.title}
-            onError={(e) => {
-              const fallback = normalizeAssetUrl(project.imageUrl) || '/assets/images/agnes_photo.jpg';
-              if (fallback && (e.target as HTMLImageElement).src !== fallback) {
-                (e.target as HTMLImageElement).src = fallback;
-              }
-            }}
-            data-template-id={project.templateImageId || `img-${project.id}`}
-            className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
-            loading="lazy"
           />
         )}
 
@@ -121,12 +130,12 @@ const WorkVisualCard: React.FC<{
         <div className="absolute inset-0 bg-[#383047]/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
           <span className="bg-white/95 text-[#383047] font-semibold text-xs px-4 py-2 rounded-full shadow-lg flex items-center gap-1.5 transform translate-y-2 group-hover:translate-y-0 transition-transform">
             <Eye className="w-3.5 h-3.5 text-[#b75078]" />
-            <span>View Work</span>
+            <span>{isVideoCategory ? 'Watch Video' : 'View Work'}</span>
           </span>
         </div>
 
         {/* Corner badge indicating category */}
-        <div className="absolute top-3 left-3 z-10">
+        <div className="absolute top-3 left-3 z-10 pointer-events-none">
           <span className="text-[10px] font-bold uppercase tracking-wider text-[#383047] bg-white/90 backdrop-blur-md px-2.5 py-1 rounded-full shadow-2xs border border-white/60">
             {isAi
               ? (isVideoCategory ? 'AI Video' : 'AI Concept')
@@ -140,10 +149,10 @@ const WorkVisualCard: React.FC<{
           </span>
         </div>
 
-        {/* Play indicator badge for video entries when rendered as poster */}
-        {isVideoCategory && mediaType !== 'video' && (
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none group-hover:opacity-0 transition-opacity">
-            <div className="w-11 h-11 rounded-full bg-black/55 backdrop-blur-sm flex items-center justify-center text-white shadow-lg ring-2 ring-white/60">
+        {/* Play indicator badge for video entries */}
+        {isVideoCategory && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none group-hover:opacity-0 transition-opacity duration-200">
+            <div className="w-12 h-12 rounded-full bg-black/60 backdrop-blur-md flex items-center justify-center text-white shadow-xl ring-2 ring-white/70">
               <div className="w-0 h-0 border-y-[6px] border-y-transparent border-l-[11px] border-l-white ml-0.5" />
             </div>
           </div>

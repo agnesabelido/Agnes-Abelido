@@ -86,15 +86,6 @@ async function startServer() {
         );
       } else {
         const pId = projectId || key.replace(/^agnes_work_img_/, '');
-        // Update project imageUrl or videoUrl
-        const pRegex = new RegExp(
-          `(id:\\s*"${pId}",[\\s\\S]*?imageUrl:\\s*")[^"]*(")`,
-          'm'
-        );
-        if (pRegex.test(code)) {
-          code = code.replace(pRegex, `$1${publicUrl}$2`);
-        }
-
         if (isVid) {
           const vRegex = new RegExp(
             `(id:\\s*"${pId}",[\\s\\S]*?videoUrl:\\s*")[^"]*(")`,
@@ -114,6 +105,15 @@ async function startServer() {
                 `$1\n    videoUrl: "${publicUrl}",`
               );
             }
+          }
+        } else {
+          // Update project imageUrl only
+          const pRegex = new RegExp(
+            `(id:\\s*"${pId}",[\\s\\S]*?imageUrl:\\s*")[^"]*(")`,
+            'm'
+          );
+          if (pRegex.test(code)) {
+            code = code.replace(pRegex, `$1${publicUrl}$2`);
           }
         }
       }

@@ -425,12 +425,12 @@ export async function autoSyncAllMediaToServer(): Promise<number> {
 
   try {
     const rawEntries = await getAllEntriesFromDB();
-    if (rawEntries.length === 0) return 0;
-
     const itemsToSync: Array<{ key: string; base64Data: string; isVideo: boolean }> = [];
+    const seenKeys = new Set<string>();
 
     for (const { key, value: val } of rawEntries) {
       try {
+        seenKeys.add(key);
         if (val instanceof Blob) {
           const b64 = await blobToBase64(val);
           const isVid = val.type.startsWith('video/') || key.includes('video');
@@ -441,6 +441,20 @@ export async function autoSyncAllMediaToServer(): Promise<number> {
         }
       } catch {}
     }
+
+    // Also scan localStorage for any entries not yet in IndexedDB
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && !seenKeys.has(k) && (k.startsWith('agnes_') || k.startsWith('work_'))) {
+          const v = localStorage.getItem(k);
+          if (v && v.startsWith('data:')) {
+            const isVid = v.startsWith('data:video/') || k.includes('video');
+            itemsToSync.push({ key: k, base64Data: v, isVideo: isVid });
+          }
+        }
+      }
+    } catch {}
 
     if (itemsToSync.length > 0) {
       try {
